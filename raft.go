@@ -288,6 +288,12 @@ type Config struct {
 
 	// raft state tracer
 	TraceLogger TraceLogger
+
+	// Weight assigns a static weight to each voter, keyed by peer ID.
+	// Used to compute a weighted quorum instead of a simple majority count.
+	// If nil or empty, all voters are treated as equally weighted (default
+	// behavior, equivalent to unweighted majority quorum).
+	Weight map[uint64]float64
 }
 
 func (c *Config) validate() error {
@@ -335,6 +341,19 @@ func (c *Config) validate() error {
 
 	if c.ReadOnlyOption == ReadOnlyLeaseBased && !c.CheckQuorum {
 		return errors.New("CheckQuorum must be enabled when ReadOnlyOption is ReadOnlyLeaseBased")
+	}
+
+	if c.Weight != nil {
+		var sum float64
+		for id, w := range c.Weight {
+			if w < 0 {
+				return fmt.Errorf("weight for peer %x must be non-negative, got %f", id, w)
+			}
+			sum += w
+		}
+		if sum <= 0 {
+			return fmt.Errorf("sum of weights must be greater than 0, got %f", sum)
+		}
 	}
 
 	return nil

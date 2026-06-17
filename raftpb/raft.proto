@@ -96,6 +96,12 @@ message Message {
 	// to respond and who to respond to when the work associated with a message
 	// is complete. Populated for MsgStorageAppend and MsgStorageApply messages.
 	repeated Message     responses   = 14;
+	// StorageWriteLatencyNs carries the observed local disk fsync latency
+	// (in nanoseconds) at the responding follower, reported in MsgAppResp
+	// messages. Used to support weighted quorum decisions that account for
+	// storage latency in addition to network RTT. Zero/unset means not
+	// measured.
+	optional int64 storage_write_latency_ns = 15;
 }
 
 message HardState {
