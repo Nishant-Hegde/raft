@@ -73,3 +73,73 @@ func WeightedCommittedIndex(weights map[uint64]float64, acked map[uint64]Index) 
 	// Should not be reached if totalWeight > 0 and entries is non-empty.
 	return Index(0)
 }
+
+// WeightedCommittedIndex computes the committed index using per-voter weights
+// instead of a simple majority count. It returns the highest index X such that
+// the sum of weights of voters whose acked index >= X is >= 0.5 * totalWeight,
+// where totalWeight is the sum of weights of ALL voters in c (not only those
+// that have acked something).
+//
+// Voters in c with no weight entry in w are treated as having weight 1.0
+// (graceful default, matching unweighted majority behavior). Only voters that
+// have reported an acked index via l contribute to the numerator; voters with
+// no acked index are counted in totalWeight but skipped in the numerator,
+// making it harder (not easier) to reach quorum when not all peers have
+// reported in. If no voter has acked anything, or totalWeight is 0, Index(0)
+// is returned.
+func (c MajorityConfig) WeightedCommittedIndex(l AckedIndexer, w WeightedConfig) Index {
+	type entry struct {
+		idx    Index
+		weight float64
+	}
+
+	// totalWeight covers every voter in c, regardless of whether they have
+	// acked. This is the correct denominator for the quorum fraction.
+	var totalWeight float64
+	entries := make([]entry, 0, len(c))
+
+	for id := range c {
+		// Determine this voter's weight; default to 1.0 if not in w.
+		weight := 1.0
+		if wv, ok := w.Weight(id); ok {
+			weight = wv
+		}
+		totalWeight += weight // always counted
+
+		// Only voters that have acked contribute to the numerator.
+		if idx, ok := l.AckedIndex(id); ok {
+			entries = append(entries, entry{idx: idx, weight: weight})
+		}
+	}
+
+	if totalWeight == 0 || len(entries) == 0 {
+		return Index(0)
+	}
+
+	// Sort descending by index so we walk from the highest acked index down.
+	slices.SortFunc(entries, func(a, b entry) int {
+		if b.idx > a.idx {
+			return 1
+		}
+		if b.idx < a.idx {
+			return -1
+		}
+		return 0
+	})
+
+	// Walk down accumulating weight. Return the first index at which
+	// cumulative acknowledging weight reaches >= 0.5 * totalWeight.
+	threshold := 0.5 * totalWeight
+	var cumWeight float64
+	for _, e := range entries {
+		cumWeight += e.weight
+		if cumWeight >= threshold {
+			return e.idx
+		}
+	}
+
+	// Cumulative weight never reached threshold (e.g. acking voters together
+	// hold less than half of all configured weight).
+	return Index(0)
+}
+

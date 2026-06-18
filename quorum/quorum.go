@@ -35,6 +35,11 @@ type AckedIndexer interface {
 	AckedIndex(voterID uint64) (idx Index, found bool)
 }
 
+// WeightedConfig allows looking up a static weight for a given voter ID.
+type WeightedConfig interface {
+	Weight(voterID uint64) (w float64, found bool)
+}
+
 type mapAckIndexer map[uint64]Index
 
 func (m mapAckIndexer) AckedIndex(id uint64) (Index, bool) {
