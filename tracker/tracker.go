@@ -234,7 +234,7 @@ func (p *ProgressTracker) QuorumActive() bool {
 		votes[id] = pr.RecentActive
 	})
 
-	return p.Voters.VoteResult(votes) == quorum.VoteWon
+	return p.Voters.WeightedVoteResult(votes, trackerWeightConfig(p.Weight)) == quorum.VoteWon
 }
 
 // VoterNodes returns a sorted slice of voters.
@@ -296,6 +296,6 @@ func (p *ProgressTracker) TallyVotes() (granted int, rejected int, _ quorum.Vote
 			rejected++
 		}
 	}
-	result := p.Voters.VoteResult(p.Votes)
+	result := p.Voters.WeightedVoteResult(p.Votes, trackerWeightConfig(p.Weight))
 	return granted, rejected, result
 }

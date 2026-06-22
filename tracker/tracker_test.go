@@ -199,3 +199,131 @@ func TestCommittedWeightedPartialAck(t *testing.T) {
 	require.Equal(t, uint64(0), got,
 		"single voter with acked Match cannot self-satisfy quorum when 4 peers have Match==0")
 }
+
+// makeActiveTracker builds a ProgressTracker whose voters have RecentActive
+// set according to the activeSet map (true = active, false or absent = inactive).
+// Weight is intentionally left nil so callers can set it when needed.
+func makeActiveTracker(voters []uint64, activeSet map[uint64]bool) ProgressTracker {
+	pt := MakeProgressTracker(256, 0)
+	cfg := quorum.MajorityConfig{}
+	for _, id := range voters {
+		cfg[id] = struct{}{}
+		pt.Progress[id] = &Progress{RecentActive: activeSet[id]}
+	}
+	pt.Voters[0] = cfg
+	return pt
+}
+
+// TestQuorumActiveNilWeightBackwardCompatibility (test a):
+// 5-node cluster, nil Weight, 3 of 5 nodes are RecentActive=true.
+// Unweighted majority = 3 >= floor(5/2)+1 = 3 → QuorumActive must return true.
+func TestQuorumActiveNilWeightBackwardCompatibility(t *testing.T) {
+	p := makeActiveTracker(
+		[]uint64{1, 2, 3, 4, 5},
+		map[uint64]bool{1: true, 2: true, 3: true, 4: false, 5: false},
+	)
+	// p.Weight is nil — backward-compatible path.
+	require.True(t, p.QuorumActive(),
+		"QuorumActive with nil Weight: 3/5 active nodes should satisfy simple majority")
+}
+
+// TestQuorumActiveHighWeightMinorityActive (test b):
+// 5-node cluster with weights 0.3/0.3/0.2/0.1/0.1. Only nodes 1 and 2 are
+// active (total active weight = 0.6 >= threshold 0.5). Even though only 2 of 5
+// nodes are active, QuorumActive should return true because high-weight nodes
+// hold the majority of weight.
+func TestQuorumActiveHighWeightMinorityActive(t *testing.T) {
+	p := makeActiveTracker(
+		[]uint64{1, 2, 3, 4, 5},
+		map[uint64]bool{1: true, 2: true, 3: false, 4: false, 5: false},
+	)
+	p.Weight = map[uint64]float64{
+		1: 0.3,
+		2: 0.3,
+		3: 0.2,
+		4: 0.1,
+		5: 0.1,
+	}
+	// Active weight: 0.3+0.3 = 0.6; totalWeight = 1.0; threshold = 0.5.
+	// 0.6 > 0.5 → VoteWon → QuorumActive returns true.
+	require.True(t, p.QuorumActive(),
+		"QuorumActive: nodes 1+2 (weight 0.6) active should satisfy weighted quorum")
+}
+
+// TestQuorumActiveLowWeightMajorityActive (test c):
+// Same 5-node cluster. Nodes 3,4,5 are active (weight 0.2+0.1+0.1 = 0.4),
+// but nodes 1,2 (weight 0.6) are NOT active. Weighted quorum is NOT satisfied.
+func TestQuorumActiveLowWeightMajorityActive(t *testing.T) {
+	p := makeActiveTracker(
+		[]uint64{1, 2, 3, 4, 5},
+		map[uint64]bool{1: false, 2: false, 3: true, 4: true, 5: true},
+	)
+	p.Weight = map[uint64]float64{
+		1: 0.3,
+		2: 0.3,
+		3: 0.2,
+		4: 0.1,
+		5: 0.1,
+	}
+	// Active weight: 0.2+0.1+0.1 = 0.4; totalWeight = 1.0; threshold = 0.5.
+	// 0.4 < 0.5 → cannot reach threshold (no missing voters) → VoteLost.
+	require.False(t, p.QuorumActive(),
+		"QuorumActive: nodes 3+4+5 (weight 0.4) active should NOT satisfy weighted quorum")
+}
+
+// TestWeightedVoteResultDirect (test d):
+// Exercises MajorityConfig.WeightedVoteResult directly with three sub-cases.
+func TestWeightedVoteResultDirect(t *testing.T) {
+	cfg := quorum.MajorityConfig{
+		1: struct{}{},
+		2: struct{}{},
+		3: struct{}{},
+		4: struct{}{},
+		5: struct{}{},
+	}
+	w := trackerWeightConfig(map[uint64]float64{
+		1: 0.3,
+		2: 0.3,
+		3: 0.2,
+		4: 0.1,
+		5: 0.1,
+	})
+
+	t.Run("VoteWon: nodes 1+2 voted yes, others no", func(t *testing.T) {
+		votes := map[uint64]bool{
+			1: true,
+			2: true,
+			3: false,
+			4: false,
+			5: false,
+		}
+		// yesWeight=0.6, totalWeight=1.0, threshold=0.5. 0.6 > 0.5 → VoteWon.
+		require.Equal(t, quorum.VoteWon, cfg.WeightedVoteResult(votes, w),
+			"nodes 1+2 (weight 0.6) voted yes → VoteWon")
+	})
+
+	t.Run("VoteLost: only nodes 3+4+5 voted yes, all others voted no", func(t *testing.T) {
+		votes := map[uint64]bool{
+			1: false,
+			2: false,
+			3: true,
+			4: true,
+			5: true,
+		}
+		// yesWeight=0.4, missingWeight=0.0 (all voted), threshold=0.5.
+		// 0.4 < 0.5 and 0.4+0.0 < 0.5 → VoteLost.
+		require.Equal(t, quorum.VoteLost, cfg.WeightedVoteResult(votes, w),
+			"nodes 3+4+5 (weight 0.4) voted yes, all 5 voted → VoteLost")
+	})
+
+	t.Run("VotePending: only node 1 voted yes, nodes 2-5 haven't voted", func(t *testing.T) {
+		votes := map[uint64]bool{
+			1: true,
+			// 2,3,4,5 absent — not yet voted
+		}
+		// yesWeight=0.3, missingWeight=0.3+0.2+0.1+0.1=0.7, threshold=0.5.
+		// 0.3 < 0.5 but 0.3+0.7=1.0 >= 0.5 → VotePending.
+		require.Equal(t, quorum.VotePending, cfg.WeightedVoteResult(votes, w),
+			"node 1 (weight 0.3) yes + nodes 2-5 pending → VotePending")
+	})
+}

@@ -163,3 +163,61 @@ func (c MajorityConfig) WeightedCommittedIndex(l AckedIndexer, w WeightedConfig)
 	return Index(0)
 }
 
+// WeightedVoteResult takes a mapping of voters to yes/no votes and a
+// WeightedConfig, and returns a VoteResult using weight sums instead of
+// node counts. The rules are:
+//   - VoteWon:     Σ(weight of yes-voters) > 0.5 * Σ(weight of all voters in c)
+//                  (strictly greater than, matching n/2+1 majority for equal weights)
+//   - VoteLost:    Σ(weight of yes-voters) + Σ(weight of not-yet-voted voters)
+//                  <= 0.5 * Σ(weight of all voters in c)  [cannot reach threshold]
+//   - VotePending: otherwise (threshold not yet reached but still reachable)
+//
+// Voters in c absent from w default to weight 1.0.
+// Empty config (len(c)==0) returns VoteWon by convention, matching VoteResult.
+func (c MajorityConfig) WeightedVoteResult(votes map[uint64]bool, w WeightedConfig) VoteResult {
+	if len(c) == 0 {
+		// By convention, the election on an empty config wins. This plays well
+		// with joint quorums where one half is empty.
+		return VoteWon
+	}
+
+	// Sum totalWeight over all voters in c, defaulting to 1.0 if absent from w.
+	var totalWeight float64
+	for id := range c {
+		weight := 1.0
+		if wv, ok := w.Weight(id); ok {
+			weight = wv
+		}
+		totalWeight += weight
+	}
+
+	threshold := 0.5 * totalWeight
+
+	// Walk voters: accumulate yesWeight for yes-votes, missingWeight for
+	// voters not yet present in the votes map (not voted yet).
+	var yesWeight float64
+	var missingWeight float64
+	for id := range c {
+		weight := 1.0
+		if wv, ok := w.Weight(id); ok {
+			weight = wv
+		}
+		v, ok := votes[id]
+		if !ok {
+			missingWeight += weight
+			continue
+		}
+		if v {
+			yesWeight += weight
+		}
+	}
+
+	if yesWeight > threshold {
+		return VoteWon
+	}
+	if yesWeight+missingWeight >= threshold {
+		return VotePending
+	}
+	return VoteLost
+}
+

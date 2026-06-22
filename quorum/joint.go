@@ -86,3 +86,18 @@ func (c JointConfig) VoteResult(votes map[uint64]bool) VoteResult {
 	// One side won, the other one is pending, so the whole outcome is.
 	return VotePending
 }
+
+// WeightedVoteResult returns the weighted vote result for a joint config,
+// requiring both halves to independently reach VoteWon (mirroring
+// JointConfig.VoteResult's joint-majority requirement).
+func (c JointConfig) WeightedVoteResult(votes map[uint64]bool, w WeightedConfig) VoteResult {
+	r1 := c[0].WeightedVoteResult(votes, w)
+	r2 := c[1].WeightedVoteResult(votes, w)
+	if r1 == r2 {
+		return r1
+	}
+	if r1 == VoteLost || r2 == VoteLost {
+		return VoteLost
+	}
+	return VotePending
+}
