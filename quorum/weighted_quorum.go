@@ -14,10 +14,15 @@
 
 package quorum
 
-import "slices"
+import (
+	"math"
+	"slices"
+)
 
 // WeightedCommittedIndex computes the highest log index X such that the sum of
-// weights of all voters whose acked index >= X is >= 0.5 * (sum of all weights).
+// weights of all voters whose acked index >= X is > 0.5 * (sum of all weights),
+// i.e. a strict majority of total weight. Using strictly-greater-than matches
+// the n/2+1 unweighted majority threshold for all cluster sizes n.
 //
 // weights maps voter ID to its static weight. acked maps voter ID to the
 // highest log index that voter has acknowledged. Only voters present in both
@@ -59,13 +64,15 @@ func WeightedCommittedIndex(weights map[uint64]float64, acked map[uint64]Index) 
 		return 0
 	})
 
-	// Walk down accumulating weight. The first index at which cumulative weight
-	// reaches >= 0.5 * totalWeight is the weighted committed index.
+	// Walk down accumulating weight. The first index at which cumulative
+	// weight exceeds 0.5 * totalWeight is the weighted committed index.
+	// Using strictly-greater-than (not >=) ensures weighted quorum with equal
+	// weights matches the n/2+1 unweighted majority for all cluster sizes.
 	threshold := 0.5 * totalWeight
 	var cumWeight float64
 	for _, e := range entries {
 		cumWeight += e.weight
-		if cumWeight >= threshold {
+		if cumWeight > threshold {
 			return e.idx
 		}
 	}
@@ -76,9 +83,13 @@ func WeightedCommittedIndex(weights map[uint64]float64, acked map[uint64]Index) 
 
 // WeightedCommittedIndex computes the committed index using per-voter weights
 // instead of a simple majority count. It returns the highest index X such that
-// the sum of weights of voters whose acked index >= X is >= 0.5 * totalWeight,
-// where totalWeight is the sum of weights of ALL voters in c (not only those
-// that have acked something).
+// the sum of weights of voters whose acked index >= X is > 0.5 * totalWeight
+// (strictly greater than half), where totalWeight is the sum of weights of ALL
+// voters in c (not only those that have acked something).
+//
+// Using strictly-greater-than (not >=) ensures that weighted quorum with equal
+// unit weights produces results identical to the n/2+1 unweighted majority
+// for all cluster sizes, including n=2 where both nodes must agree.
 //
 // Voters in c with no weight entry in w are treated as having weight 1.0
 // (graceful default, matching unweighted majority behavior). Only voters that
@@ -88,6 +99,14 @@ func WeightedCommittedIndex(weights map[uint64]float64, acked map[uint64]Index) 
 // reported in. If no voter has acked anything, or totalWeight is 0, Index(0)
 // is returned.
 func (c MajorityConfig) WeightedCommittedIndex(l AckedIndexer, w WeightedConfig) Index {
+	// An empty config imposes no restriction on the commit index — return
+	// MaxUint64 so that JointConfig.WeightedCommittedIndex takes min(idx0,
+	// idx1) correctly when one half is nil/empty. This mirrors the identical
+	// fast-path in MajorityConfig.CommittedIndex.
+	if len(c) == 0 {
+		return math.MaxUint64
+	}
+
 	type entry struct {
 		idx    Index
 		weight float64
@@ -127,13 +146,14 @@ func (c MajorityConfig) WeightedCommittedIndex(l AckedIndexer, w WeightedConfig)
 		return 0
 	})
 
-	// Walk down accumulating weight. Return the first index at which
-	// cumulative acknowledging weight reaches >= 0.5 * totalWeight.
+	// Walk down accumulating weight. Return the first index at which cumulative
+	// acknowledging weight strictly exceeds 0.5 * totalWeight. Using > (not >=)
+	// matches n/2+1 unweighted majority for all cluster sizes.
 	threshold := 0.5 * totalWeight
 	var cumWeight float64
 	for _, e := range entries {
 		cumWeight += e.weight
-		if cumWeight >= threshold {
+		if cumWeight > threshold {
 			return e.idx
 		}
 	}
