@@ -17,6 +17,7 @@ package raft
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -113,6 +114,16 @@ type MemoryStorage struct {
 	ents []*pb.Entry
 
 	callStats inMemStorageCallStats
+
+	// SimulatedFsyncLatency is an optional artificial delay injected during
+	// Append() to simulate storage-write latency for research experiments.
+	// Zero means disabled.
+	SimulatedFsyncLatency time.Duration
+
+	// LastFsyncLatencyNs stores the observed storage-write latency from the
+	// most recent Append() call. Zero when SimulatedFsyncLatency is zero or
+	// when the call returned via an early-return path (empty entries).
+	LastFsyncLatencyNs int64
 }
 
 // NewMemoryStorage creates an empty MemoryStorage.
@@ -303,8 +314,17 @@ func (ms *MemoryStorage) Append(entries []*pb.Entry) error {
 
 	// shortcut if there is no new entry.
 	if last < first {
+		// Reset latency so a stale value from a previous call is not visible.
+		ms.LastFsyncLatencyNs = 0
 		return nil
 	}
+
+	// Simulate fsync latency. When SimulatedFsyncLatency is zero the sleep is
+	// skipped entirely and LastFsyncLatencyNs is set to 0.
+	start := time.Now()
+	time.Sleep(ms.SimulatedFsyncLatency)
+	ms.LastFsyncLatencyNs = time.Since(start).Nanoseconds()
+
 	// truncate compacted entries
 	if first > entries[0].GetIndex() {
 		entries = entries[first-entries[0].GetIndex():]
