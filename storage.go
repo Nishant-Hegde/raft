@@ -136,6 +136,23 @@ func NewMemoryStorage() *MemoryStorage {
 	return ms
 }
 
+// LatencyReporter is an optional interface a Storage implementation may
+// satisfy to report the observed write latency from the most recent Append()
+// call. Used by newStorageAppendRespMsg to populate StorageWriteLatencyNs in
+// MsgStorageAppendResp for weighted-quorum latency tracking.
+type LatencyReporter interface {
+	LastWriteLatencyNs() int64
+}
+
+// LastWriteLatencyNs implements LatencyReporter. It acquires the lock to
+// prevent a data race with Append(), which runs on the application goroutine
+// and writes LastFsyncLatencyNs under the same lock.
+func (ms *MemoryStorage) LastWriteLatencyNs() int64 {
+	ms.Lock()
+	defer ms.Unlock()
+	return ms.LastFsyncLatencyNs
+}
+
 // InitialState implements the Storage interface.
 func (ms *MemoryStorage) InitialState() (*pb.HardState, *pb.ConfState, error) {
 	ms.callStats.initialState++

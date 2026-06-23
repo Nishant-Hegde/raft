@@ -22,6 +22,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pb "go.etcd.io/raft/v3/raftpb"
 )
 
 // TestSimulatedFsyncLatencyDisabled verifies that when SimulatedFsyncLatency
@@ -72,4 +74,59 @@ func TestSimulatedFsyncLatencyEmptyAppend(t *testing.T) {
 
 	assert.Equal(t, int64(0), ms.LastFsyncLatencyNs,
 		"LastFsyncLatencyNs must stay 0 when Append() is called with nil entries")
+}
+
+// TestStorageAppendRespMsgLatencyWiring verifies the end-to-end wiring:
+// a MemoryStorage with SimulatedFsyncLatency set will cause
+// newStorageAppendRespMsg to produce a *pb.Message whose
+// StorageWriteLatencyNs matches LastFsyncLatencyNs (via LatencyReporter).
+//
+// Design note: MemoryStorage.Append() is called by the *application's* storage
+// goroutine after it drains a Ready, not by the raft state machine itself.
+// becomeLeader/becomeCandidate write to the unstable in-memory log only.
+// We therefore call ms.Append(unstableEntries) explicitly here to simulate the
+// storage goroutine, which is the call that sets LastFsyncLatencyNs.
+func TestStorageAppendRespMsgLatencyWiring(t *testing.T) {
+	const delay = 10 * time.Millisecond
+
+	// Build a minimal single-node raft instance backed by a MemoryStorage
+	// that has a simulated fsync delay.
+	ms := newTestMemoryStorage(withPeers(1))
+	ms.SimulatedFsyncLatency = delay
+	r := newTestRaft(1, 10, 1, ms)
+
+	// Drive to leader to produce unstable entries in the raft log.
+	r.becomeCandidate()
+	r.becomeLeader()
+
+	// Simulate the application's storage goroutine: drain unstable entries
+	// and call ms.Append(). This is what actually triggers the simulated
+	// fsync delay and sets ms.LastFsyncLatencyNs.
+	unstable := r.raftLog.nextUnstableEnts()
+	require.NotEmpty(t, unstable, "precondition: leader must have unstable entries (no-op)")
+	require.NoError(t, ms.Append(unstable))
+
+	// Confirm latency was recorded.
+	wantNs := ms.LastFsyncLatencyNs
+	assert.GreaterOrEqual(t, wantNs, int64(delay/2),
+		"precondition: LastFsyncLatencyNs must be >= half the simulated delay after Append()")
+
+	// Construct a minimal Ready mirroring what acceptReady would build.
+	rd := Ready{
+		Entries: unstable,
+	}
+
+	// Call the function under test.
+	msg := newStorageAppendRespMsg(r, rd)
+
+	// Verify message type.
+	assert.Equal(t, pb.MsgStorageAppendResp, msg.GetType(),
+		"message type must be MsgStorageAppendResp")
+
+	// Verify StorageWriteLatencyNs is non-nil and equals LastFsyncLatencyNs.
+	if assert.NotNil(t, msg.StorageWriteLatencyNs,
+		"StorageWriteLatencyNs must be populated when storage implements LatencyReporter") {
+		assert.Equal(t, wantNs, msg.GetStorageWriteLatencyNs(),
+			"StorageWriteLatencyNs must equal LastFsyncLatencyNs reported by LatencyReporter")
+	}
 }

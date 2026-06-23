@@ -359,6 +359,12 @@ func newStorageAppendRespMsg(r *raft, rd Ready) *pb.Message {
 	if !IsEmptySnap(rd.Snapshot) {
 		m.Snapshot = rd.Snapshot
 	}
+	// Populate storage-write latency if the backend supports LatencyReporter.
+	// new(v) is the idiomatic way to set *int64 fields on pb.Message in this
+	// codebase (same pattern as new(r.Term), new(last.index), etc.).
+	if lr, ok := r.raftLog.storage.(LatencyReporter); ok {
+		m.StorageWriteLatencyNs = new(lr.LastWriteLatencyNs())
+	}
 	return m
 }
 
