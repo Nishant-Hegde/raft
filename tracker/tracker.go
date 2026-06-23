@@ -121,6 +121,11 @@ type ProgressTracker struct {
 
 	Votes map[uint64]bool
 
+	// Weight assigns a static weight to each voter, keyed by voter ID. If nil
+	// or a voter is absent, that voter defaults to weight 1.0 (equivalent to
+	// unweighted majority behavior).
+	Weight map[uint64]float64
+
 	MaxInflight      int
 	MaxInflightBytes uint64
 }
@@ -174,10 +179,25 @@ func (l matchAckIndexer) AckedIndex(id uint64) (quorum.Index, bool) {
 	return quorum.Index(pr.Match), true
 }
 
+// trackerWeightConfig adapts a map[uint64]float64 to the quorum.WeightedConfig
+// interface. Voters absent from the map return (0, false), causing
+// MajorityConfig.WeightedCommittedIndex to default them to weight 1.0.
+type trackerWeightConfig map[uint64]float64
+
+var _ quorum.WeightedConfig = trackerWeightConfig(nil)
+
+func (m trackerWeightConfig) Weight(id uint64) (float64, bool) {
+	w, ok := m[id]
+	return w, ok
+}
+
 // Committed returns the largest log index known to be committed based on what
-// the voting members of the group have acknowledged.
+// the voting members of the group have acknowledged. When ProgressTracker.Weight
+// is set, per-voter weights are used; absent or nil Weight maps default every
+// voter to 1.0, producing results identical to the old unweighted path.
 func (p *ProgressTracker) Committed() uint64 {
-	return uint64(p.Voters.CommittedIndex(matchAckIndexer(p.Progress)))
+	return uint64(p.Voters.WeightedCommittedIndex(
+		matchAckIndexer(p.Progress), trackerWeightConfig(p.Weight)))
 }
 
 // Visit invokes the supplied closure for all tracked progresses in stable order.
@@ -214,7 +234,7 @@ func (p *ProgressTracker) QuorumActive() bool {
 		votes[id] = pr.RecentActive
 	})
 
-	return p.Voters.VoteResult(votes) == quorum.VoteWon
+	return p.Voters.WeightedVoteResult(votes, trackerWeightConfig(p.Weight)) == quorum.VoteWon
 }
 
 // VoterNodes returns a sorted slice of voters.
@@ -276,6 +296,6 @@ func (p *ProgressTracker) TallyVotes() (granted int, rejected int, _ quorum.Vote
 			rejected++
 		}
 	}
-	result := p.Voters.VoteResult(p.Votes)
+	result := p.Voters.WeightedVoteResult(p.Votes, trackerWeightConfig(p.Weight))
 	return granted, rejected, result
 }

@@ -55,6 +55,19 @@ func (c JointConfig) CommittedIndex(l AckedIndexer) Index {
 	return idx1
 }
 
+// WeightedCommittedIndex returns the largest committed index for the given
+// joint configuration using per-voter weights, requiring both halves of the
+// joint config to independently reach their own weighted quorum threshold
+// (mirroring CommittedIndex's min-of-both-halves safety property).
+func (c JointConfig) WeightedCommittedIndex(l AckedIndexer, w WeightedConfig) Index {
+	idx0 := c[0].WeightedCommittedIndex(l, w)
+	idx1 := c[1].WeightedCommittedIndex(l, w)
+	if idx0 < idx1 {
+		return idx0
+	}
+	return idx1
+}
+
 // VoteResult takes a mapping of voters to yes/no (true/false) votes and returns
 // a result indicating whether the vote is pending, lost, or won. A joint quorum
 // requires both majority quorums to vote in favor.
@@ -71,5 +84,20 @@ func (c JointConfig) VoteResult(votes map[uint64]bool) VoteResult {
 		return VoteLost
 	}
 	// One side won, the other one is pending, so the whole outcome is.
+	return VotePending
+}
+
+// WeightedVoteResult returns the weighted vote result for a joint config,
+// requiring both halves to independently reach VoteWon (mirroring
+// JointConfig.VoteResult's joint-majority requirement).
+func (c JointConfig) WeightedVoteResult(votes map[uint64]bool, w WeightedConfig) VoteResult {
+	r1 := c[0].WeightedVoteResult(votes, w)
+	r2 := c[1].WeightedVoteResult(votes, w)
+	if r1 == r2 {
+		return r1
+	}
+	if r1 == VoteLost || r2 == VoteLost {
+		return VoteLost
+	}
 	return VotePending
 }
