@@ -299,3 +299,81 @@ func (p *ProgressTracker) TallyVotes() (granted int, rejected int, _ quorum.Vote
 	result := p.Voters.WeightedVoteResult(p.Votes, trackerWeightConfig(p.Weight))
 	return granted, rejected, result
 }
+
+const EWAlpha = 0.2
+
+// UpdateEWAWeight updates the EWA weight for the voter identified by id using
+// the supplied storage-write latency sample (in nanoseconds). The formula is:
+//
+//	wi <- EWAlpha*(1/latencyMs) + (1-EWAlpha)*wi
+//
+// If latencyNs <= 0 (no real sample yet), the update acts as a mathematical
+// no-op (wRaw = wPrev) rather than skipping the function or clamping to a
+// tiny floor, ensuring a single code path. Voters absent from the Weight map
+// start with wi=1 (uniform initial weight).
+//
+// After updating the individual weight, all voter weights are re-normalized so
+// that their sum equals n (the number of voters in the current joint config).
+// This keeps the total weight equal to n regardless of the mix of latencies,
+// which in turn preserves the "more than half the weight" quorum threshold
+// semantics implemented by WeightedCommittedIndex and WeightedVoteResult.
+func (p *ProgressTracker) UpdateEWAWeight(id uint64, latencyNs int64) {
+	// Lazily allocate the Weight map on first use.
+	if p.Weight == nil {
+		p.Weight = make(map[uint64]float64)
+	}
+
+	// Prior weight defaults to 1.0 (uniform) if this voter has never been seen.
+	wPrev, ok := p.Weight[id]
+	if !ok {
+		wPrev = 1.0
+	}
+
+	// EWA update:
+	// If there's no real sample (<= 0), the natural formula output is to preserve wPrev.
+	// NOTE: this means any caller that never populates StorageWriteLatencyNs (e.g. tests
+	// using bare MemoryStorage with SimulatedFsyncLatency left at 0, or manually-set
+	// static weights via direct trk.Weight assignment) will see EWA act as a complete
+	// no-op on every update — not because static weights are special-cased, but because
+	// EWA never receives a nonzero latency signal to act on. Static weights only persist
+	// in such tests as a side effect of this; if real latency data starts flowing for
+	// a given voter, EWA will begin overwriting its weight on the next update.
+	// Otherwise, convert ns to ms so 1/latency produces a meaningful magnitude.
+	wRaw := wPrev
+	if latencyNs > 0 {
+		latencyMs := float64(latencyNs) / 1_000_000.0
+		wRaw = EWAlpha*(1.0/latencyMs) + (1-EWAlpha)*wPrev
+	}
+	p.Weight[id] = wRaw
+
+	// Normalize: collect all voter IDs (union of both halves of joint config),
+	// fill in weight 1.0 for voters not yet in the map, then scale so sum == n.
+	voterIDs := p.Voters.IDs()
+	n := float64(len(voterIDs))
+	if n == 0 {
+		return
+	}
+
+	// Compute raw sum, defaulting absent voters to 1.0.
+	var total float64
+	for vid := range voterIDs {
+		w, exists := p.Weight[vid]
+		if !exists {
+			w = 1.0
+		}
+		total += w
+	}
+	if total == 0 {
+		return
+	}
+
+	// Scale factor so that sum of all voter weights == n.
+	scale := n / total
+	for vid := range voterIDs {
+		w, exists := p.Weight[vid]
+		if !exists {
+			w = 1.0
+		}
+		p.Weight[vid] = w * scale
+	}
+}
