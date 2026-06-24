@@ -1,0 +1,87 @@
+{
+  "profiles": {
+    "mild": {
+      "description": "Mild heterogeneity — 2x spread between fastest and slowest node",
+      "spread": "2x",
+      "target_p99_ms": {
+        "node1": 1,
+        "node2": 1,
+        "node3": 1,
+        "node4": 2,
+        "node5": 2
+      },
+      "netem_delay_ms": {
+        "node1": 1,
+        "node2": 1,
+        "node3": 1,
+        "node4": 2,
+        "node5": 2
+      },
+      "netem_jitter_ms": {
+        "node1": 0,
+        "node2": 0,
+        "node3": 0,
+        "node4": 0,
+        "node5": 0
+      }
+    },
+    "moderate": {
+      "description": "Moderate heterogeneity — 5x spread between fastest and slowest node",
+      "spread": "5x",
+      "target_p99_ms": {
+        "node1": 1,
+        "node2": 1,
+        "node3": 1,
+        "node4": 5,
+        "node5": 5
+      },
+      "netem_delay_ms": {
+        "node1": 1,
+        "node2": 1,
+        "node3": 1,
+        "node4": 5,
+        "node5": 5
+      },
+      "netem_jitter_ms": {
+        "node1": 0,
+        "node2": 0,
+        "node3": 0,
+        "node4": 0,
+        "node5": 0
+      }
+    },
+    "severe": {
+      "description": "Severe heterogeneity — 10x spread between fastest and slowest node",
+      "spread": "10x",
+      "target_p99_ms": {
+        "node1": 1,
+        "node2": 1,
+        "node3": 1,
+        "node4": 10,
+        "node5": 10
+      },
+      "netem_delay_ms": {
+        "node1": 1,
+        "node2": 1,
+        "node3": 1,
+        "node4": 10,
+        "node5": 10
+      },
+      "netem_jitter_ms": {
+        "node1": 0,
+        "node2": 0,
+        "node3": 0,
+        "node4": 0,
+        "node5": 0
+      }
+    }
+  },
+  "nodes": ["node1", "node2", "node3", "node4", "node5"],
+  "metrics_ports": {
+    "node1": 9091,
+    "node2": 9092,
+    "node3": 9093,
+    "node4": 9094,
+    "node5": 9095
+  }
+}

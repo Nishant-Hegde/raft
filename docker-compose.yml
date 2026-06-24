@@ -1,0 +1,55 @@
+services:
+  node1:
+    build: .
+    command: ["-id", "node1", "-grpc-port", "50051", "-metrics-port", "9091", "-extra-delay-ms", "${NODE1_DELAY:-0}"]
+    ports:
+      - "9091:9091"
+      - "50051:50051"
+    tmpfs:
+      - /wal
+    cap_add:
+      - NET_ADMIN
+
+  node2:
+    build: .
+    command: ["-id", "node2", "-grpc-port", "50052", "-metrics-port", "9092", "-extra-delay-ms", "${NODE2_DELAY:-0}"]
+    ports:
+      - "9092:9092"
+      - "50052:50052"
+    tmpfs:
+      - /wal
+    cap_add:
+      - NET_ADMIN
+
+  node3:
+    build: .
+    command: ["-id", "node3", "-grpc-port", "50053", "-metrics-port", "9093", "-extra-delay-ms", "${NODE3_DELAY:-0}"]
+    ports:
+      - "9093:9093"
+      - "50053:50053"
+    tmpfs:
+      - /wal
+    cap_add:
+      - NET_ADMIN
+
+  node4:
+    build: .
+    command: ["-id", "node4", "-grpc-port", "50054", "-metrics-port", "9094", "-extra-delay-ms", "${NODE4_DELAY:-0}"]
+    ports:
+      - "9094:9094"
+      - "50054:50054"
+    tmpfs:
+      - /wal
+    cap_add:
+      - NET_ADMIN
+
+  node5:
+    build: .
+    command: ["-id", "node5", "-grpc-port", "50055", "-metrics-port", "9095", "-extra-delay-ms", "${NODE5_DELAY:-0}"]
+    ports:
+      - "9095:9095"
+      - "50055:50055"
+    tmpfs:
+      - /wal
+    cap_add:
+      - NET_ADMIN
