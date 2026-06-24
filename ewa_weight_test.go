@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	pb "go.etcd.io/raft/v3/raftpb"
 	"go.etcd.io/raft/v3/tracker"
 )
 
@@ -222,5 +223,43 @@ func TestNormalizationSumEqualsN(t *testing.T) {
 			assert.InDelta(t, float64(n), s, tol,
 				"sum of weights must equal n=%d after every update", n)
 		}
+	}
+}
+
+// ── Test 5 ───────────────────────────────────────────────────────────────────
+
+// TestEWAWiring verifies that a successful MsgAppResp correctly extracts
+// StorageWriteLatencyNs and triggers an EWA weight update in the leader.
+func TestEWAWiring(t *testing.T) {
+	storage := newTestMemoryStorage(withPeers(1, 2, 3))
+	r := newTestRaft(1, 10, 1, storage)
+	r.becomeCandidate()
+	r.becomeLeader()
+
+	// By default, Weight is nil or empty, so weights are implicitly 1.0.
+	// Sending an ACK from node 2 with latency > 0 will force the map to initialize
+	// and node 2's weight to shift from 1.0.
+
+	latencyNs := int64(4_000_000)
+	from := uint64(2)
+	to := uint64(1)
+	typ := pb.MsgAppResp
+	idx := r.raftLog.lastIndex()
+	reject := false
+
+	r.Step(&pb.Message{
+		From:                  &from,
+		To:                    &to,
+		Type:                  &typ,
+		Index:                 &idx,
+		Reject:                &reject,
+		StorageWriteLatencyNs: &latencyNs,
+	})
+
+	if r.trk.Weight == nil {
+		t.Fatalf("trk.Weight is nil; UpdateEWAWeight was not called from MsgAppResp wiring")
+	}
+	if w := r.trk.Weight[2]; w == 1.0 || w == 0.0 {
+		t.Fatalf("trk.Weight[2] = %v; expected weight shift due to EWA update", w)
 	}
 }

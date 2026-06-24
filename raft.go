@@ -1535,6 +1535,9 @@ func stepLeader(r *raft, m *pb.Message) error {
 				r.sendAppend(m.GetFrom())
 			}
 		} else {
+			// Wire successful follower acknowledgement to the EWA weight update logic.
+			r.trk.UpdateEWAWeight(m.GetFrom(), m.GetStorageWriteLatencyNs())
+
 			// We want to update our tracking if the response updates our
 			// matched index or if the response can move a probing peer back
 			// into StateReplicate (see heartbeat_rep_recovers_from_probing.txt
