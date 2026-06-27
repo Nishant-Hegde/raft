@@ -666,6 +666,12 @@ func (r *raft) maybeSendAppend(to uint64, sendIfEmpty bool) bool {
 		return r.maybeSendSnapshot(to, pr)
 	}
 
+	// Ensure an epoch exists if sending an append individually before the first broadcast
+	if len(r.trk.EpochStates) == 0 {
+		r.trk.SnapshotEpoch(r.raftLog.lastIndex(), r.id)
+	}
+	ctxPayload := tracker.EncodeEpochContext(r.trk.CurrentEpoch, r.trk.EpochStates[r.trk.CurrentEpoch].Weights)
+
 	// Send the actual MsgApp otherwise, and update the progress accordingly.
 	r.send(&pb.Message{
 		To:      new(to),
@@ -674,6 +680,7 @@ func (r *raft) maybeSendAppend(to uint64, sendIfEmpty bool) bool {
 		LogTerm: new(prevTerm),
 		Entries: ents,
 		Commit:  new(r.raftLog.committed),
+		Context: ctxPayload,
 	})
 	pr.SentEntries(len(ents), uint64(payloadsSize(ents)))
 	pr.SentCommit(r.raftLog.committed)
@@ -731,6 +738,9 @@ func (r *raft) sendHeartbeat(to uint64, ctx []byte) {
 // bcastAppend sends RPC, with entries to all peers that are not up-to-date
 // according to the progress recorded in r.trk.
 func (r *raft) bcastAppend() {
+	// Snapshot epoch once per broadcast cycle to prevent per-message epoch churn
+	r.trk.SnapshotEpoch(r.raftLog.lastIndex(), r.id)
+
 	r.trk.Visit(func(id uint64, _ *tracker.Progress) {
 		if id == r.id {
 			return
@@ -1535,6 +1545,12 @@ func stepLeader(r *raft, m *pb.Message) error {
 				r.sendAppend(m.GetFrom())
 			}
 		} else {
+			if echoedEpoch, ok := tracker.DecodeEpochContext(m.GetContext()); ok {
+				if state, exists := r.trk.EpochStates[echoedEpoch]; exists {
+					state.Acks[m.GetFrom()] = true
+				}
+			}
+
 			// Wire successful follower acknowledgement to the EWA weight update logic.
 			r.trk.UpdateEWAWeight(m.GetFrom(), m.GetStorageWriteLatencyNs())
 
@@ -1570,6 +1586,7 @@ func stepLeader(r *raft, m *pb.Message) error {
 				}
 
 				if r.maybeCommit() {
+					r.trk.CleanupEpochs(r.raftLog.committed)
 					// committed index has progressed for the term, so it is safe
 					// to respond to pending read index requests
 					releasePendingReadIndexMessages(r)
@@ -1816,11 +1833,11 @@ func (r *raft) handleAppendEntries(m *pb.Message) {
 	a := logSliceFromMsgApp(m)
 
 	if a.prev.index < r.raftLog.committed {
-		r.send(&pb.Message{To: m.From, Type: pb.MsgAppResp.Enum(), Index: new(r.raftLog.committed)})
+		r.send(&pb.Message{To: m.From, Type: pb.MsgAppResp.Enum(), Index: new(r.raftLog.committed), Context: m.GetContext()})
 		return
 	}
 	if mlastIndex, ok := r.raftLog.maybeAppend(a, m.GetCommit()); ok {
-		r.send(&pb.Message{To: m.From, Type: pb.MsgAppResp.Enum(), Index: new(mlastIndex)})
+		r.send(&pb.Message{To: m.From, Type: pb.MsgAppResp.Enum(), Index: new(mlastIndex), Context: m.GetContext()})
 		return
 	}
 	r.logger.Debugf("%x [logterm: %d, index: %d] rejected MsgApp [logterm: %d, index: %d] from %x",
@@ -1851,6 +1868,7 @@ func (r *raft) handleAppendEntries(m *pb.Message) {
 		Reject:     new(true),
 		RejectHint: new(hintIndex),
 		LogTerm:    new(hintTerm),
+		Context:    m.GetContext(),
 	})
 }
 

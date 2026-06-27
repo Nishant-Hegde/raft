@@ -15,7 +15,9 @@
 package tracker
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -126,8 +128,17 @@ type ProgressTracker struct {
 	// unweighted majority behavior).
 	Weight map[uint64]float64
 
+	CurrentEpoch uint64
+	EpochStates  map[uint64]*EpochState
+
 	MaxInflight      int
 	MaxInflightBytes uint64
+}
+
+type EpochState struct {
+	Weights     map[uint64]float64
+	MaxAppended uint64
+	Acks        map[uint64]bool
 }
 
 // MakeProgressTracker initializes a ProgressTracker.
@@ -135,6 +146,9 @@ func MakeProgressTracker(maxInflight int, maxBytes uint64) ProgressTracker {
 	p := ProgressTracker{
 		MaxInflight:      maxInflight,
 		MaxInflightBytes: maxBytes,
+		EpochStates: map[uint64]*EpochState{
+			0: {Weights: make(map[uint64]float64)},
+		},
 		Config: Config{
 			Voters: quorum.JointConfig{
 				quorum.MajorityConfig{},
@@ -376,4 +390,103 @@ func (p *ProgressTracker) UpdateEWAWeight(id uint64, latencyNs int64) {
 		}
 		p.Weight[vid] = w * scale
 	}
+}
+
+// SnapshotEpoch increments CurrentEpoch if weights differ from the last broadcast,
+// and records the new weights under CurrentEpoch with maxAppended.
+// It is called once per broadcast cycle (e.g., bcastAppend) to avoid churn.
+func (p *ProgressTracker) SnapshotEpoch(maxAppended uint64, leaderID uint64) {
+	if p.EpochStates == nil {
+		p.EpochStates = make(map[uint64]*EpochState)
+	}
+
+	currState, exists := p.EpochStates[p.CurrentEpoch]
+	changed := !exists
+	if exists {
+		if len(p.Weight) != len(currState.Weights) {
+			changed = true
+		} else {
+			for id, w := range p.Weight {
+				// Exact comparison: any weight drift creates a new epoch snapshot. This
+				// is intentional — epochs are per-broadcast-round snapshots, bounded by
+				// CleanupEpochs; we do not coalesce near-identical weight vectors.
+				if currState.Weights[id] != w {
+					changed = true
+					break
+				}
+			}
+		}
+	}
+
+	if changed && p.CurrentEpoch == 0 {
+		// Optimization/Test-compat: If we are in Epoch 0 and the new weights are purely uniform (1.0),
+		// we don't need to increment the epoch because it behaves exactly like the default unweighted state.
+		allUniform := true
+		for _, w := range p.Weight {
+			if w != 1.0 {
+				allUniform = false
+				break
+			}
+		}
+		if allUniform {
+			changed = false
+		}
+	}
+
+	if changed {
+		p.CurrentEpoch++
+		newWeights := make(map[uint64]float64, len(p.Weight))
+		for k, v := range p.Weight {
+			newWeights[k] = v
+		}
+		p.EpochStates[p.CurrentEpoch] = &EpochState{
+			Weights:     newWeights,
+			MaxAppended: maxAppended,
+			Acks:        map[uint64]bool{leaderID: true}, // leader implicitly acks
+		}
+	} else if exists {
+		currState.MaxAppended = maxAppended
+	}
+}
+
+// HasQuorum returns true if the gathered acks form a quorum under this epoch's weights.
+func (s *EpochState) HasQuorum(voters quorum.JointConfig) bool {
+	return voters.WeightedVoteResult(s.Acks, trackerWeightConfig(s.Weights)) == quorum.VoteWon
+}
+
+func (p *ProgressTracker) CleanupEpochs(committed uint64) {
+	for ep, state := range p.EpochStates {
+		if ep == 0 {
+			continue // Never delete the default unweighted Epoch 0
+		}
+		if state.MaxAppended <= committed {
+			delete(p.EpochStates, ep)
+		}
+	}
+}
+
+// EncodeEpochContext packs the epoch and weights into a byte slice.
+func EncodeEpochContext(epoch uint64, weights map[uint64]float64) []byte {
+	if epoch == 0 {
+		return nil
+	}
+	n := len(weights)
+	ctx := make([]byte, 10+n*16)
+	binary.LittleEndian.PutUint64(ctx[0:8], epoch)
+	binary.LittleEndian.PutUint16(ctx[8:10], uint16(n))
+	offset := 10
+	for id, w := range weights {
+		binary.LittleEndian.PutUint64(ctx[offset:offset+8], id)
+		binary.LittleEndian.PutUint64(ctx[offset+8:offset+16], math.Float64bits(w))
+		offset += 16
+	}
+	return ctx
+}
+
+// DecodeEpochContext extracts the epoch from a payload encoded by EncodeEpochContext.
+func DecodeEpochContext(ctx []byte) (epoch uint64, ok bool) {
+	if len(ctx) < 10 {
+		return 0, false
+	}
+	return binary.LittleEndian.Uint64(ctx[:8]), true
 }
