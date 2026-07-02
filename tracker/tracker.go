@@ -316,6 +316,16 @@ func (p *ProgressTracker) TallyVotes() (granted int, rejected int, _ quorum.Vote
 
 const EWAlpha = 0.2
 
+// Epsilon is the weight floor guard.
+// The formula is: 0.05 * (total_weight / n) = 0.05, given the sum==n normalization.
+// The default is 0.05 (capped below 1.0 defensively).
+// Why the floor exists: a node whose weight collapses to ~0 becomes invisible to quorums
+// and unable to recover, since low weight -> negligible contribution even after latency improves.
+// How the clamp/renormalize interaction is resolved: remainder renormalization to a fixed point.
+// Floored nodes are clamped exactly to Epsilon, and only the unfloored remainder is renormalized
+// to (n - sum(floored)). This repeats until no new nodes fall below the floor.
+const Epsilon = 0.05
+
 // UpdateEWAWeight updates the EWA weight for the voter identified by id using
 // the supplied storage-write latency sample (in nanoseconds). The formula is:
 //
@@ -389,6 +399,57 @@ func (p *ProgressTracker) UpdateEWAWeight(id uint64, latencyNs int64) {
 			w = 1.0
 		}
 		p.Weight[vid] = w * scale
+	}
+
+	// Apply weight floor ε-guard iteratively.
+	if latencyNs <= 0 {
+		return
+	}
+
+	eps := Epsilon
+	if eps >= 1.0 {
+		eps = 0.99
+	}
+
+	floored := make(map[uint64]bool)
+	for {
+		newlyFloored := false
+		var unflooredRawSum float64
+
+		for vid := range voterIDs {
+			if !floored[vid] && p.Weight[vid] < eps {
+				floored[vid] = true
+				p.Weight[vid] = eps
+				newlyFloored = true
+			}
+			if !floored[vid] {
+				unflooredRawSum += p.Weight[vid]
+			}
+		}
+
+		if !newlyFloored {
+			break
+		}
+
+		if len(floored) == int(n) {
+			// All-floored fallback: uniform 1.0
+			for vid := range voterIDs {
+				p.Weight[vid] = 1.0
+			}
+			break
+		}
+
+		flooredTotal := float64(len(floored)) * eps
+		targetUnflooredSum := n - flooredTotal
+
+		if unflooredRawSum > 0 {
+			remainderScale := targetUnflooredSum / unflooredRawSum
+			for vid := range voterIDs {
+				if !floored[vid] {
+					p.Weight[vid] *= remainderScale
+				}
+			}
+		}
 	}
 }
 
