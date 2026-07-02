@@ -342,6 +342,10 @@ const Epsilon = 0.05
 // which in turn preserves the "more than half the weight" quorum threshold
 // semantics implemented by WeightedCommittedIndex and WeightedVoteResult.
 func (p *ProgressTracker) UpdateEWAWeight(id uint64, latencyNs int64) {
+	p.updateEWAWeightWithAlpha(id, latencyNs, EWAlpha)
+}
+
+func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, alpha float64) {
 	// Lazily allocate the Weight map on first use.
 	if p.Weight == nil {
 		p.Weight = make(map[uint64]float64)
@@ -366,7 +370,7 @@ func (p *ProgressTracker) UpdateEWAWeight(id uint64, latencyNs int64) {
 	wRaw := wPrev
 	if latencyNs > 0 {
 		latencyMs := float64(latencyNs) / 1_000_000.0
-		wRaw = EWAlpha*(1.0/latencyMs) + (1-EWAlpha)*wPrev
+		wRaw = alpha*(1.0/latencyMs) + (1-alpha)*wPrev
 	}
 	p.Weight[id] = wRaw
 
