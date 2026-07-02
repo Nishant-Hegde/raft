@@ -133,6 +133,11 @@ type ProgressTracker struct {
 
 	MaxInflight      int
 	MaxInflightBytes uint64
+
+	// Adaptive jitter damping
+	WeightWindow map[uint64][]float64
+	DampCooldown map[uint64]int
+	Damped       map[uint64]bool
 }
 
 type EpochState struct {
@@ -357,6 +362,44 @@ func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, a
 		wPrev = 1.0
 	}
 
+	if latencyNs > 0 {
+		if p.WeightWindow == nil {
+			p.WeightWindow = make(map[uint64][]float64)
+			p.DampCooldown = make(map[uint64]int)
+			p.Damped = make(map[uint64]bool)
+		}
+
+		window := p.WeightWindow[id]
+		if len(window) == 10 {
+			mean := 0.0
+			for _, w := range window {
+				mean += w
+			}
+			mean /= 10.0
+
+			variance := 0.0
+			for _, w := range window {
+				variance += (w - mean) * (w - mean)
+			}
+			variance /= 10.0
+
+			// The variance threshold of 0.0100 was derived to sit above normal operating noise
+			// AND above the transient variance caused by a 2x latency step response (which peaks ~0.005),
+			// ensuring it only engages during severe whipsawing (e.g. +/- 80% jitter).
+			if variance > 0.0100 {
+				p.DampCooldown[id] = 20
+			}
+		}
+
+		if p.DampCooldown[id] > 0 {
+			alpha = 0.05
+			p.Damped[id] = true
+			p.DampCooldown[id]--
+		} else {
+			p.Damped[id] = false
+		}
+	}
+
 	// EWA update:
 	// If there's no real sample (<= 0), the natural formula output is to preserve wPrev.
 	// NOTE: this means any caller that never populates StorageWriteLatencyNs (e.g. tests
@@ -371,6 +414,12 @@ func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, a
 	if latencyNs > 0 {
 		latencyMs := float64(latencyNs) / 1_000_000.0
 		wRaw = alpha*(1.0/latencyMs) + (1-alpha)*wPrev
+
+		window := p.WeightWindow[id]
+		if len(window) == 10 {
+			window = window[1:]
+		}
+		p.WeightWindow[id] = append(window, wRaw)
 	}
 	p.Weight[id] = wRaw
 
