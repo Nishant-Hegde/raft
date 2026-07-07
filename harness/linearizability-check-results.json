@@ -1,0 +1,17 @@
+{
+  "generated": "2026-07-07T07:22:55.544116",
+  "n_ops": 200,
+  "profile": "moderate",
+  "vanilla_raft": {
+    "passed": 200,
+    "failed": 0,
+    "violations": [],
+    "avg_latency_ms": 93.588
+  },
+  "wr_raft": {
+    "passed": 200,
+    "failed": 0,
+    "violations": [],
+    "avg_latency_ms": 93.396
+  }
+}
