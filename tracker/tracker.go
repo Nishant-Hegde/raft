@@ -138,6 +138,8 @@ type ProgressTracker struct {
 	WeightWindow map[uint64][]float64
 	GlobalDampCooldown int
 	GlobalDamped       bool
+
+	HistoryLogger func(epoch uint64, ct float64, maxAppended uint64, weights map[uint64]float64)
 }
 
 type EpochState struct {
@@ -555,13 +557,20 @@ func (p *ProgressTracker) SnapshotEpoch(maxAppended uint64, leaderID uint64) {
 	if changed {
 		p.CurrentEpoch++
 		newWeights := make(map[uint64]float64, len(p.Weight))
+		var totalWeight float64
 		for k, v := range p.Weight {
 			newWeights[k] = v
+			totalWeight += v
 		}
 		p.EpochStates[p.CurrentEpoch] = &EpochState{
 			Weights:     newWeights,
 			MaxAppended: maxAppended,
 			Acks:        map[uint64]bool{leaderID: true}, // leader implicitly acks
+		}
+
+		if p.HistoryLogger != nil {
+			ct := totalWeight / 2.0
+			p.HistoryLogger(p.CurrentEpoch, ct, maxAppended, newWeights)
 		}
 	} else if exists {
 		currState.MaxAppended = maxAppended

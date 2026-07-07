@@ -294,6 +294,15 @@ type Config struct {
 	// If nil or empty, all voters are treated as equally weighted (default
 	// behavior, equivalent to unweighted majority quorum).
 	Weight map[uint64]float64
+
+	// EpochHistoryLogger is an optional callback that fires exactly once per epoch
+	// transition. When provided, it receives a copy of the new weight vector,
+	// allowing consumers to persist a history of weight and quorum adaptations
+	// over time (e.g., for observability or paper figures). The provided map is
+	// owned by the callee and safe to retain. Note: The implicit uniform period
+	// (Epoch 0) does not trigger this log; consumers should anchor it using an
+	// externally recorded run-start time.
+	EpochHistoryLogger func(epoch uint64, ct float64, maxAppended uint64, weights map[uint64]float64)
 }
 
 func (c *Config) validate() error {
@@ -484,6 +493,7 @@ func newRaft(c *Config) *raft {
 		stepDownOnRemoval:           c.StepDownOnRemoval,
 		traceLogger:                 c.TraceLogger,
 	}
+	r.trk.HistoryLogger = c.EpochHistoryLogger
 
 	traceInitState(r)
 
