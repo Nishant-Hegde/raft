@@ -26,7 +26,7 @@ func TestJitterDamping(t *testing.T) {
 				ptUndamped.WeightWindow[2] = nil
 			}
 
-			if pt.Damped != nil && pt.Damped[1] {
+			if pt.GlobalDamped {
 				t.Fatalf("Damper erroneously engaged on steady input at round %d", i)
 			}
 
@@ -63,17 +63,15 @@ func TestJitterDamping(t *testing.T) {
 			ptDamped.UpdateEWAWeight(1, lat)
 			ptDamped.UpdateEWAWeight(2, 2_000_000)
 			
-			if ptDamped.Damped != nil && ptDamped.Damped[1] {
+			if ptDamped.GlobalDamped {
 				damperEngaged = true
-				ptDamped.DampCooldown[1] = 200 // Force it to stay engaged to measure pure damped stddev
+				ptDamped.GlobalDampCooldown = 200 // Force it to stay engaged to measure pure damped stddev
 			}
 
 			// Undamped tracker (force clear cooldown)
 			ptUndamped.UpdateEWAWeight(1, lat)
 			ptUndamped.UpdateEWAWeight(2, 2_000_000)
-			if ptUndamped.DampCooldown != nil {
-				ptUndamped.DampCooldown[1] = 0 // bypass damper
-			}
+			ptUndamped.GlobalDampCooldown = 0 // bypass damper
 
 			if i >= 150 {
 				dampedWeights = append(dampedWeights, ptDamped.Weight[1])
@@ -119,7 +117,7 @@ func TestJitterDamping(t *testing.T) {
 			latencyMs := 0.5 + rng.Float64()*10.0
 			pt.UpdateEWAWeight(1, int64(latencyMs * 1_000_000.0))
 			pt.UpdateEWAWeight(2, 2_000_000)
-			if pt.Damped != nil && pt.Damped[1] {
+			if pt.GlobalDamped {
 				damperEngaged = true
 			}
 		}
@@ -133,7 +131,7 @@ func TestJitterDamping(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			pt.UpdateEWAWeight(1, 8_000_000)
 			pt.UpdateEWAWeight(2, 2_000_000)
-			if !pt.Damped[1] {
+			if !pt.GlobalDamped {
 				recovered = true
 				break
 			}
@@ -165,13 +163,11 @@ func TestJitterDamping(t *testing.T) {
 			pt.UpdateEWAWeight(1, int64(latencyMs*1_000_000.0))
 			pt.UpdateEWAWeight(2, 2_000_000)
 
-			if pt.Damped != nil {
-				currState := pt.Damped[1]
-				if currState != lastState {
-					t.Logf("Transition at round %d: %v -> %v", i, lastState, currState)
-					transitions++
-					lastState = currState
-				}
+			currState := pt.GlobalDamped
+			if currState != lastState {
+				t.Logf("Transition at round %d: %v -> %v", i, lastState, currState)
+				transitions++
+				lastState = currState
 			}
 		}
 
@@ -190,19 +186,17 @@ func TestJitterDamping(t *testing.T) {
 		pt.Voters[0] = map[uint64]struct{}{1: {}, 2: {}}
 		
 		pt.WeightWindow = make(map[uint64][]float64)
-		pt.DampCooldown = make(map[uint64]int)
-		pt.Damped = make(map[uint64]bool)
 		
-		pt.DampCooldown[1] = 10
-		pt.Damped[1] = true
+		pt.GlobalDampCooldown = 10
+		pt.GlobalDamped = true
 		pt.WeightWindow[1] = []float64{0.1, 0.9, 0.1, 0.9, 0.1, 0.9, 0.1, 0.9, 0.1, 0.9}
 
 		pt.UpdateEWAWeight(1, 0)
 		
-		if pt.DampCooldown[1] != 10 {
-			t.Fatalf("No-op path modified cooldown! Expected 10, got %d", pt.DampCooldown[1])
+		if pt.GlobalDampCooldown != 10 {
+			t.Fatalf("No-op path modified cooldown! Expected 10, got %d", pt.GlobalDampCooldown)
 		}
-		if !pt.Damped[1] {
+		if !pt.GlobalDamped {
 			t.Fatal("No-op path cleared damped flag!")
 		}
 	})

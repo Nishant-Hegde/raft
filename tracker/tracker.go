@@ -136,8 +136,8 @@ type ProgressTracker struct {
 
 	// Adaptive jitter damping
 	WeightWindow map[uint64][]float64
-	DampCooldown map[uint64]int
-	Damped       map[uint64]bool
+	GlobalDampCooldown int
+	GlobalDamped       bool
 }
 
 type EpochState struct {
@@ -365,8 +365,6 @@ func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, a
 	if latencyNs > 0 {
 		if p.WeightWindow == nil {
 			p.WeightWindow = make(map[uint64][]float64)
-			p.DampCooldown = make(map[uint64]int)
-			p.Damped = make(map[uint64]bool)
 		}
 
 		window := p.WeightWindow[id]
@@ -386,17 +384,24 @@ func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, a
 			// The variance threshold of 0.0100 was derived to sit above normal operating noise
 			// AND above the transient variance caused by a 2x latency step response (which peaks ~0.005),
 			// ensuring it only engages during severe whipsawing (e.g. +/- 80% jitter).
+			// We trigger a global cooldown because continuous normalization creates a parasitic fixed point 
+			// (e.g. w_i = (5 * alpha_i * (1/L_i)) / (S - 5 + 5 * alpha_i)) if different nodes use different 
+			// alpha values, preventing a damped node from hitting the floor. Damping is cluster-wide 
+			// so one noisy node briefly slows all adaptation, bounded by the cooldown.
+			// We decrement the cooldown once per UpdateEWAWeight call (rather than per full round)
+			// because Raft tracks node progress asynchronously; there is no clear 'round' boundary.
+			// A cooldown of 20 thus depletes in 20 node updates across the cluster.
 			if variance > 0.0100 {
-				p.DampCooldown[id] = 20
+				p.GlobalDampCooldown = 20
 			}
 		}
 
-		if p.DampCooldown[id] > 0 {
+		if p.GlobalDampCooldown > 0 {
 			alpha = 0.05
-			p.Damped[id] = true
-			p.DampCooldown[id]--
+			p.GlobalDamped = true
+			p.GlobalDampCooldown--
 		} else {
-			p.Damped[id] = false
+			p.GlobalDamped = false
 		}
 	}
 
