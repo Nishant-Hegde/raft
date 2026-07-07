@@ -140,6 +140,9 @@ type ProgressTracker struct {
 	GlobalDamped       bool
 
 	HistoryLogger func(epoch uint64, ct float64, maxAppended uint64, weights map[uint64]float64)
+
+	AlphaBase    float64
+	FloorEpsilon float64
 }
 
 type EpochState struct {
@@ -166,6 +169,8 @@ func MakeProgressTracker(maxInflight int, maxBytes uint64) ProgressTracker {
 		},
 		Votes:    map[uint64]bool{},
 		Progress: map[uint64]*Progress{},
+		AlphaBase:    EWAlpha,
+		FloorEpsilon: Epsilon,
 	}
 	return p
 }
@@ -349,7 +354,7 @@ const Epsilon = 0.05
 // which in turn preserves the "more than half the weight" quorum threshold
 // semantics implemented by WeightedCommittedIndex and WeightedVoteResult.
 func (p *ProgressTracker) UpdateEWAWeight(id uint64, latencyNs int64) {
-	p.updateEWAWeightWithAlpha(id, latencyNs, EWAlpha)
+	p.updateEWAWeightWithAlpha(id, latencyNs, p.AlphaBase)
 }
 
 func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, alpha float64) {
@@ -466,7 +471,7 @@ func (p *ProgressTracker) updateEWAWeightWithAlpha(id uint64, latencyNs int64, a
 		return
 	}
 
-	eps := Epsilon
+	eps := p.FloorEpsilon
 	if eps >= 1.0 {
 		eps = 0.99
 	}

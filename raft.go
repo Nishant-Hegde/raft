@@ -295,6 +295,14 @@ type Config struct {
 	// behavior, equivalent to unweighted majority quorum).
 	Weight map[uint64]float64
 
+	// AlphaBase assigns the base alpha parameter for EWA weight adaptation.
+	// If unset (0.0), it defaults to tracker.EWAlpha.
+	AlphaBase float64
+
+	// FloorEpsilon assigns the clamp floor for low-weight voters.
+	// If unset (0.0), it defaults to tracker.Epsilon.
+	FloorEpsilon float64
+
 	// EpochHistoryLogger is an optional callback that fires exactly once per epoch
 	// transition. When provided, it receives a copy of the new weight vector,
 	// allowing consumers to persist a history of weight and quorum adaptations
@@ -308,6 +316,12 @@ type Config struct {
 func (c *Config) validate() error {
 	if c.ID == None {
 		return errors.New("cannot use none as id")
+	}
+	if c.AlphaBase != 0 && (c.AlphaBase <= 0 || c.AlphaBase >= 1) {
+		return errors.New("AlphaBase must be strictly between 0 and 1")
+	}
+	if c.FloorEpsilon != 0 && (c.FloorEpsilon <= 0 || c.FloorEpsilon >= 1) {
+		return errors.New("FloorEpsilon must be strictly between 0 and 1")
 	}
 	if IsLocalMsgTarget(c.ID) {
 		return errors.New("cannot use local target as id")
@@ -494,6 +508,12 @@ func newRaft(c *Config) *raft {
 		traceLogger:                 c.TraceLogger,
 	}
 	r.trk.HistoryLogger = c.EpochHistoryLogger
+	if c.AlphaBase != 0 {
+		r.trk.AlphaBase = c.AlphaBase
+	}
+	if c.FloorEpsilon != 0 {
+		r.trk.FloorEpsilon = c.FloorEpsilon
+	}
 
 	traceInitState(r)
 
