@@ -1,0 +1,79 @@
+{
+  "ops_per_sec": 1000,
+  "profile": "moderate",
+  "vanilla": {
+    "mode": "vanilla_raft",
+    "ops_per_sec": 1000,
+    "duration_sec": 60,
+    "timestamp": "2026-07-07T05:38:59.496032",
+    "ops_completed": 2961,
+    "per_node": {
+      "node1": {
+        "p50_ms": 0.128,
+        "p99_ms": 0.512,
+        "p999_ms": 2.048
+      },
+      "node2": {
+        "p50_ms": 0.128,
+        "p99_ms": 0.512,
+        "p999_ms": 1.024
+      },
+      "node3": {
+        "p50_ms": 0.128,
+        "p99_ms": 0.512,
+        "p999_ms": 16.384
+      },
+      "node4": {
+        "p50_ms": 0.128,
+        "p99_ms": 0.512,
+        "p999_ms": 2.048
+      },
+      "node5": {
+        "p50_ms": 0.128,
+        "p99_ms": 0.512,
+        "p999_ms": 0.512
+      }
+    },
+    "commit_p50_ms": 0.128,
+    "commit_p99_ms": 0.512,
+    "commit_p999_ms": 2.048
+  },
+  "wr_raft": {
+    "mode": "wr_raft",
+    "ops_per_sec": 1000,
+    "duration_sec": 60,
+    "timestamp": "2026-07-07T05:40:26.649548",
+    "ops_completed": 2825,
+    "per_node": {
+      "node1": {
+        "p50_ms": 2.048,
+        "p99_ms": 2.048,
+        "p999_ms": 4.096
+      },
+      "node2": {
+        "p50_ms": 2.048,
+        "p99_ms": 2.048,
+        "p999_ms": 4.096
+      },
+      "node3": {
+        "p50_ms": 2.048,
+        "p99_ms": 2.048,
+        "p999_ms": 4.096
+      },
+      "node4": {
+        "p50_ms": 8.192,
+        "p99_ms": 8.192,
+        "p999_ms": 16.384
+      },
+      "node5": {
+        "p50_ms": 8.192,
+        "p99_ms": 8.192,
+        "p999_ms": 8.192
+      }
+    },
+    "commit_p50_ms": 2.048,
+    "commit_p99_ms": 2.048,
+    "commit_p999_ms": 4.096
+  },
+  "generated": "2026-07-07T05:40:33.166599"
+}
