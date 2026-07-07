@@ -17,3 +17,9 @@ latency-injector/*results.json
 hema_files.txt
 
 hema_tree.txt
+S c r i p t s / 
+Lib/
+Scripts/
+scripts/
+share/
+*.exe
