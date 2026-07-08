@@ -1552,6 +1552,7 @@ func stepLeader(r *raft, m *pb.Message) error {
 			}
 
 			// Wire successful follower acknowledgement to the EWA weight update logic.
+			fmt.Printf("[DEBUG] UpdateEWAWeight called: from=%v latencyNs=%v\n", m.GetFrom(), m.GetStorageWriteLatencyNs())
 			r.trk.UpdateEWAWeight(m.GetFrom(), m.GetStorageWriteLatencyNs())
 
 			// We want to update our tracking if the response updates our
