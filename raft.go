@@ -294,11 +294,34 @@ type Config struct {
 	// If nil or empty, all voters are treated as equally weighted (default
 	// behavior, equivalent to unweighted majority quorum).
 	Weight map[uint64]float64
+
+	// AlphaBase assigns the base alpha parameter for EWA weight adaptation.
+	// If unset (0.0), it defaults to tracker.EWAlpha.
+	AlphaBase float64
+
+	// FloorEpsilon assigns the clamp floor for low-weight voters.
+	// If unset (0.0), it defaults to tracker.Epsilon.
+	FloorEpsilon float64
+
+	// EpochHistoryLogger is an optional callback that fires exactly once per epoch
+	// transition. When provided, it receives a copy of the new weight vector,
+	// allowing consumers to persist a history of weight and quorum adaptations
+	// over time (e.g., for observability or paper figures). The provided map is
+	// owned by the callee and safe to retain. Note: The implicit uniform period
+	// (Epoch 0) does not trigger this log; consumers should anchor it using an
+	// externally recorded run-start time.
+	EpochHistoryLogger func(epoch uint64, ct float64, maxAppended uint64, weights map[uint64]float64)
 }
 
 func (c *Config) validate() error {
 	if c.ID == None {
 		return errors.New("cannot use none as id")
+	}
+	if c.AlphaBase != 0 && (c.AlphaBase <= 0 || c.AlphaBase >= 1) {
+		return errors.New("AlphaBase must be strictly between 0 and 1")
+	}
+	if c.FloorEpsilon != 0 && (c.FloorEpsilon <= 0 || c.FloorEpsilon >= 1) {
+		return errors.New("FloorEpsilon must be strictly between 0 and 1")
 	}
 	if IsLocalMsgTarget(c.ID) {
 		return errors.New("cannot use local target as id")
@@ -483,6 +506,13 @@ func newRaft(c *Config) *raft {
 		disableConfChangeValidation: c.DisableConfChangeValidation,
 		stepDownOnRemoval:           c.StepDownOnRemoval,
 		traceLogger:                 c.TraceLogger,
+	}
+	r.trk.HistoryLogger = c.EpochHistoryLogger
+	if c.AlphaBase != 0 {
+		r.trk.AlphaBase = c.AlphaBase
+	}
+	if c.FloorEpsilon != 0 {
+		r.trk.FloorEpsilon = c.FloorEpsilon
 	}
 
 	traceInitState(r)
