@@ -6,6 +6,12 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"net"
+
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
+
+	"go.etcd.io/raft/v3/node-server/transport"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -48,13 +54,12 @@ func main() {
 	storage := raft.NewMemoryStorage()
 
 	c := &raft.Config{
-		ID:                 myID,
-		ElectionTick:       10,
-		HeartbeatTick:      1,
-		Storage:            storage,
-		MaxSizePerMsg:      4096,
-		MaxInflightMsgs:    256,
-		AsyncStorageWrites: true,
+		ID:              myID,
+		ElectionTick:    10,
+		HeartbeatTick:   1,
+		Storage:         storage,
+		MaxSizePerMsg:   4096,
+		MaxInflightMsgs: 256,
 	}
 
 	peers := []raft.Peer{
@@ -62,6 +67,31 @@ func main() {
 	}
 
 	n := raft.StartNode(c, peers)
+	peerAddrs := map[uint64]string{
+		1: "node1:50051",
+		2: "node2:50052",
+		3: "node3:50053",
+		4: "node4:50054",
+		5: "node5:50055",
+	}
+
+	pm := transport.NewPeerManager(peerAddrs, myID)
+	defer pm.Stop()
+
+	// Start the gRPC server so other nodes can send messages to us
+	grpcAddr := fmt.Sprintf(":%s", *grpcPort)
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		log.Fatalf("failed to listen on %s: %v", grpcAddr, err)
+	}
+	grpcServer := grpc.NewServer()
+	transport.RegisterRaftTransportServer(grpcServer, transport.NewRaftServer(n))
+	go func() {
+		log.Printf("gRPC server listening on %s", grpcAddr)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("grpc server failed: %v", err)
+		}
+	}()
 	log.Printf("Raft node started with ID %d", myID)
 	log.Printf("Starting node %s | gRPC: %s | Metrics: %s | WAL: %s",
 		*nodeID, *grpcPort, *metricsPort, *walDir)
@@ -72,35 +102,50 @@ func main() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
 
-		toAppend := make(chan *raftpb.Message, 256)
-		toApply := make(chan *raftpb.Message, 256)
-
-		go func() {
-			for m := range toAppend {
-				log.Printf("[append-thread] got %d entries", len(m.GetEntries()))
-			}
-		}()
-		go func() {
-			for m := range toApply {
-				log.Printf("[apply-thread] got %d committed entries", len(m.GetEntries()))
-			}
-		}()
-
 		for {
 			select {
 			case <-ticker.C:
 				n.Tick()
 			case rd := <-n.Ready():
-				for _, m := range rd.Messages {
-					switch m.GetTo() {
-					case raft.LocalAppendThread:
-						toAppend <- m
-					case raft.LocalApplyThread:
-						toApply <- m
-					default:
-						log.Printf("[network] would send msg to node %d (not wired yet)", m.GetTo())
+				// 1. Persist hard state + unstable entries to storage
+				if !raft.IsEmptyHardState(rd.HardState) {
+					if err := storage.SetHardState(rd.HardState); err != nil {
+						log.Printf("failed to set hard state: %v", err)
 					}
 				}
+				if len(rd.Entries) > 0 {
+					if err := storage.Append(rd.Entries); err != nil {
+						log.Printf("failed to append entries: %v", err)
+					}
+				}
+
+				// 2. Send outgoing messages to peers
+				for _, m := range rd.Messages {
+					pm.Send(m)
+				}
+
+				// 3. Apply committed entries
+				for _, entry := range rd.CommittedEntries {
+                    switch entry.GetType() {
+                    case raftpb.EntryNormal:
+                        if len(entry.Data) == 0 {
+                            continue
+                        }
+                        // TODO: apply entry.Data to the state machine
+                        log.Printf("applied normal entry: %d bytes", len(entry.Data))
+                    case raftpb.EntryConfChange:
+                        var cc raftpb.ConfChange
+                        if err := proto.Unmarshal(entry.Data, &cc); err != nil {
+                            log.Printf("failed to unmarshal ConfChange: %v", err)
+                            continue
+                        }
+                        n.ApplyConfChange(&cc)
+                        log.Printf("applied conf change: %+v", cc)
+                    }
+                }
+
+				// 4. Tell raft this Ready batch is fully processed
+				n.Advance()
 			}
 		}
 	}()
