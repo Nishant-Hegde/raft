@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -31,6 +33,11 @@ var (
 		Help:    "Duration of real fsync calls in nanoseconds",
 		Buckets: prometheus.ExponentialBuckets(1000, 2, 20),
 	})
+
+	var raftWeight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+        Name: "wr_raft_weight",
+        Help: "Current WR-Raft EWA weight for this node",
+    }, []string{"peer_id"})
 )
 var nodeIDMap = map[string]uint64{
 	"node1": 1,
@@ -42,6 +49,7 @@ var nodeIDMap = map[string]uint64{
 
 func init() {
 	prometheus.MustRegister(fsyncDuration)
+	prometheus.MustRegister(raftWeight)
 }
 
 func main() {
@@ -51,7 +59,8 @@ func main() {
 		log.Fatalf("unknown node id: %s", *nodeID)
 	}
 
-	storage := raft.NewMemoryStorage()
+	backend := raft.NewMemoryStorage()
+    storage := NewInstrumentedStorage(*nodeID, *walDir, *extraDelayMs, backend)
 
 	c := &raft.Config{
 		ID:              myID,
@@ -157,6 +166,24 @@ func main() {
 	})
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "node=%s grpc=%s wal=%s\n", *nodeID, *grpcPort, *walDir)
+	})
+	http.HandleFunc("/propose", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "use POST", http.StatusMethodNotAllowed)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to read body: %v", err), http.StatusBadRequest)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := n.Propose(ctx, body); err != nil {
+			http.Error(w, fmt.Sprintf("propose failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, "proposed %d bytes\n", len(body))
 	})
 
 	addr := fmt.Sprintf(":%s", *metricsPort)
