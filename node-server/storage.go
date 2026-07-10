@@ -95,6 +95,3 @@ func (s *InstrumentedStorage) Snapshot() (*raftpb.Snapshot, error) {
 	return s.ms.Snapshot()
 }
 
-func (s *InstrumentedStorage) SetHardState(st *raftpb.HardState) error {
-    return s.backend.SetHardState(st)
-}
