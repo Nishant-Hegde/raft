@@ -1868,7 +1868,22 @@ func (r *raft) handleAppendEntries(m *pb.Message) {
 		return
 	}
 	if mlastIndex, ok := r.raftLog.maybeAppend(a, m.GetCommit()); ok {
-		r.send(&pb.Message{To: m.From, Type: pb.MsgAppResp.Enum(), Index: new(mlastIndex), Context: m.GetContext()})
+		resp := &pb.Message{To: m.From, Type: pb.MsgAppResp.Enum(), Index: new(mlastIndex), Context: m.GetContext()}
+		// Attach this follower's most-recent storage-write latency so the
+		// leader can feed it into UpdateEWAWeight for weighted-quorum tracking.
+		//
+		// Timing note: the actual InstrumentedStorage.Append for THIS batch
+		// of entries has not run yet — it runs later when the application
+		// processes rd.Entries. LastWriteLatencyNs() therefore returns the
+		// PREVIOUS completed write's latency, not this batch's. This is
+		// acceptable for the EWA (exponentially weighted average): a follower
+		// writing consistently at ~10 ms reports ~10 ms every round, offset
+		// by one batch. The very first response may report 0.
+		if lr, ok := r.raftLog.storage.(LatencyReporter); ok {
+			latency := lr.LastWriteLatencyNs()
+			resp.StorageWriteLatencyNs = &latency
+		}
+		r.send(resp)
 		return
 	}
 	r.logger.Debugf("%x [logterm: %d, index: %d] rejected MsgApp [logterm: %d, index: %d] from %x",
