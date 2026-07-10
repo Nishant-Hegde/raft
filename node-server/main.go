@@ -34,10 +34,10 @@ var (
 		Buckets: prometheus.ExponentialBuckets(1000, 2, 20),
 	})
 
-	var raftWeight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-        Name: "wr_raft_weight",
-        Help: "Current WR-Raft EWA weight for this node",
-    }, []string{"peer_id"})
+	raftWeight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "wr_raft_weight",
+		Help: "Current WR-Raft EWA weight per peer (populated on leader)",
+	}, []string{"peer_id"})
 )
 var nodeIDMap = map[string]uint64{
 	"node1": 1,
@@ -69,6 +69,12 @@ func main() {
 		Storage:         storage,
 		MaxSizePerMsg:   4096,
 		MaxInflightMsgs: 256,
+	}
+
+	c.EpochHistoryLogger = func(epoch uint64, ct float64, maxAppended uint64, weights map[uint64]float64) {
+		for peerID, w := range weights {
+			raftWeight.WithLabelValues(fmt.Sprintf("%d", peerID)).Set(w)
+		}
 	}
 
 	peers := []raft.Peer{
