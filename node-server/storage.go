@@ -11,6 +11,7 @@ import (
 )
 
 type InstrumentedStorage struct {
+	backend *raft.MemoryStorage
 	mu           sync.Mutex
 	ms           *raft.MemoryStorage
 	walDir       string
@@ -18,8 +19,9 @@ type InstrumentedStorage struct {
 	extraDelayMs int
 }
 
-func NewInstrumentedStorage(nodeID, walDir string, extraDelayMs int) *InstrumentedStorage {
+func NewInstrumentedStorage(nodeID string, walDir string, extraDelayMs int, backend *raft.MemoryStorage) *InstrumentedStorage {
 	return &InstrumentedStorage{
+		backend: backend,
 		ms:           raft.NewMemoryStorage(),
 		walDir:       walDir,
 		nodeID:       nodeID,
@@ -86,4 +88,8 @@ func (s *InstrumentedStorage) FirstIndex() (uint64, error) {
 
 func (s *InstrumentedStorage) Snapshot() (*raftpb.Snapshot, error) {
 	return s.ms.Snapshot()
+}
+
+func (s *InstrumentedStorage) SetHardState(st *raftpb.HardState) error {
+    return s.backend.SetHardState(st)
 }
