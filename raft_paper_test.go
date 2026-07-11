@@ -578,6 +578,13 @@ func TestFollowerCheckMsgApp(t *testing.T) {
 			expected.Reject = new(true)
 			expected.RejectHint = new(tt.wrejectHint)
 			expected.LogTerm = new(tt.wlogterm)
+		} else if tt.index >= 1 {
+			// Success-path MsgAppResp via maybeAppend now carries
+			// StorageWriteLatencyNs from the LatencyReporter interface
+			// (0 for MemoryStorage). The committed-early-return path
+			// (index < committed) does not stamp latency.
+			var zero int64
+			expected.StorageWriteLatencyNs = &zero
 		}
 		assert.Equal(t, []*pb.Message{expected}, r.readMessages(), "#%d", i)
 	}
