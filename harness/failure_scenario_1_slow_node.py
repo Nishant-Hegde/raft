@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import subprocess
+import threading
 import urllib.request
 from datetime import datetime
 
@@ -60,16 +61,22 @@ def parse_percentile(metrics_text, pct):
             return round(le / 1_000_000, 3)
     return None
 
-def fetch_weight(port):
-    """Parse current WR-Raft weight for this node from /metrics, if exposed."""
-    text = fetch_metrics(port)
-    for line in text.splitlines():
-        if line.startswith("wr_raft_weight "):
-            try:
-                return round(float(line.split(" ")[1]), 4)
-            except Exception:
-                pass
+def fetch_weight(node_id, all_ports):
+    """
+    Scrape all nodes, find the leader (only node with wr_raft_weight values),
+    then return the weight for the specific node_id we care about.
+    node_id is a uint64 string e.g. "5" for node5.
+    """
+    for port in all_ports.values():
+        text = fetch_metrics(port)
+        for line in text.splitlines():
+            if line.startswith(f'wr_raft_weight{{peer_id="{node_id}"}}'):
+                try:
+                    return round(float(line.split("} ")[1]), 4)
+                except Exception:
+                    pass
     return None
+
 
 def fetch_commit_latency_p99(port):
     text = fetch_metrics(port)
@@ -134,7 +141,7 @@ def stop_cluster(proc):
 
 # ── Sampling loop ─────────────────────────────────────────
 
-def run_scenario():
+def run_scenario(stop_event):
     print(f"\n[scenario1] Running for {RUN_SECONDS}s — sampling every {SAMPLE_EVERY}s...")
     samples = []
     start = time.time()
@@ -149,7 +156,7 @@ def run_scenario():
             port = METRICS_PORTS[node]
             text = fetch_metrics(port)
             row[f"{node}_p99_ms"]   = parse_percentile(text, 99)
-            row[f"{node}_weight"]   = fetch_weight(port)
+            row["node5_weight"]   = fetch_weight("5", METRICS_PORTS)
 
         row["cluster_commit_p99_ms"] = fetch_commit_latency_p99(METRICS_PORTS["node1"])
         samples.append(row)
@@ -159,6 +166,7 @@ def run_scenario():
               f"node5_weight={row.get('node5_weight')}  "
               f"commit_p99={row.get('cluster_commit_p99_ms')}ms")
 
+    stop_event.set()
     return samples
 
 # ── Verdict ───────────────────────────────────────────────
@@ -235,6 +243,20 @@ def save_results(samples, result):
         json.dump(out, f, indent=2)
     print(f"  📄 Results saved to: {path}")
 
+def run_load_generator(stop_event, port=9091, rate_per_sec=10):
+    interval = 1.0 / rate_per_sec
+    while not stop_event.is_set():
+        try:
+            req = urllib.request.Request(
+                f"http://localhost:{port}/propose",
+                data=b"write-op",
+                method="POST"
+            )
+            urllib.request.urlopen(req, timeout=1)
+        except Exception:
+            pass
+        time.sleep(interval)
+
 # ── Main ──────────────────────────────────────────────────
 
 def main():
@@ -258,8 +280,16 @@ def main():
 
     print("[scenario1] ⏳ Warming up 10s...")
     time.sleep(10)
+    stop_load = threading.Event()
+    load_thread = threading.Thread(
+        target=run_load_generator,
+        args=(stop_load,),
+        daemon=True
+    )
+    load_thread.start()
+    print("[scenario1] 🔥 Load generator started")
 
-    samples = run_scenario()
+    samples = run_scenario(stop_load)
     result  = evaluate(samples)
     print_result(result)
     save_results(samples, result)
