@@ -16,8 +16,7 @@ package raft
 
 import (
 	"errors"
-    "fmt"
-	
+
 	pb "go.etcd.io/raft/v3/raftpb"
 	"go.etcd.io/raft/v3/tracker"
 )
@@ -364,12 +363,9 @@ func newStorageAppendRespMsg(r *raft, rd Ready) *pb.Message {
 	// new(v) is the idiomatic way to set *int64 fields on pb.Message in this
 	// codebase (same pattern as new(r.Term), new(last.index), etc.).
 	if lr, ok := r.raftLog.storage.(LatencyReporter); ok {
-        latencyVal := lr.LastWriteLatencyNs()
-        fmt.Printf("[DEBUG] LatencyReporter OK, latency=%v ns\n", latencyVal)
-        m.StorageWriteLatencyNs = new(latencyVal)
-    } else {
-        fmt.Printf("[DEBUG] LatencyReporter type assertion FAILED — storage does not implement LatencyReporter\n")
-    }
+		latencyVal := lr.LastWriteLatencyNs()
+		m.StorageWriteLatencyNs = new(latencyVal)
+	}
 	return m
 }
 
