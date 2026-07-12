@@ -26,7 +26,7 @@ METRICS_PORTS = {
 RUN_SECONDS  = 120
 SAMPLE_EVERY = 5   # seconds between samples
 
-# ΓöÇΓöÇ Metrics helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Metrics helpers 
 
 def fetch_metrics(port):
     try:
@@ -80,7 +80,7 @@ def node_is_up(port):
     except Exception:
         return False
 
-# ΓöÇΓöÇ Cluster helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Cluster helpers 
 
 def wait_for_cluster(timeout=60):
     print("[scenario4] Waiting for all 5 nodes...", end="", flush=True)
@@ -88,15 +88,15 @@ def wait_for_cluster(timeout=60):
     while time.time() < deadline:
         up = sum(1 for n in NODES if node_is_up(METRICS_PORTS[n]))
         if up == len(NODES):
-            print(f" Γ£à All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" Γ¥î Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
-    print(f"\n[scenario4] Starting cluster ΓÇö delays: "
+    print(f"\n[scenario4] Starting cluster  delays: "
           f"node1/2/3={env_vars.get('NODE1_DELAY','0')}ms "
           f"node4/5={env_vars.get('NODE4_DELAY','0')}ms")
     env = os.environ.copy()
@@ -123,12 +123,12 @@ def stop_cluster(proc):
     )
     time.sleep(5)
     proc.terminate()
-    print("[scenario4] Cluster stopped Γ£à")
+    print("[scenario4] Cluster stopped ")
 
-# ΓöÇΓöÇ Sampling loop ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Sampling loop 
 
 def run_scenario():
-    print(f"\n[scenario4] Running for {RUN_SECONDS}s ΓÇö sampling every {SAMPLE_EVERY}s...")
+    print(f"\n[scenario4] Running for {RUN_SECONDS}s  sampling every {SAMPLE_EVERY}s...")
     samples = []
     start   = time.time()
     tick    = 0
@@ -162,7 +162,7 @@ def run_scenario():
 
     return samples
 
-# ΓöÇΓöÇ Verdict ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Verdict 
 
 def evaluate(samples):
     fast_p99s   = []
@@ -212,7 +212,7 @@ def evaluate(samples):
 
 def print_result(result):
     print(f"\n{'='*65}")
-    print(f"  FAILURE SCENARIO 4 ΓÇö TWO SLOW NODES (moderate profile, node4+node5)")
+    print(f"  FAILURE SCENARIO 4  TWO SLOW NODES (moderate profile, node4+node5)")
     print(f"{'='*65}")
     print(f"  Avg fast-node p99 (node1-3)  : {result['avg_fast_node_p99_ms']} ms")
     print(f"  Avg slow-node p99 (node4-5)  : {result['avg_slow_node_p99_ms']} ms")
@@ -221,10 +221,10 @@ def print_result(result):
     print(f"  Slow nodes on critical path    : {result['slow_nodes_on_critical_path']}")
     print(f"  {'-'*63}")
     if result["passed"]:
-        print(f"  Γ£à PASS ΓÇö 3 fast nodes formed quorum without node4/node5")
-        print(f"  Γ£à Cluster commit latency tracks fast nodes, not slow ones")
+        print(f"   PASS  3 fast nodes formed quorum without node4/node5")
+        print(f"   Cluster commit latency tracks fast nodes, not slow ones")
     else:
-        print(f"  Γ¥î FAIL ΓÇö either fast nodes stalled, or slow nodes gated commits")
+        print(f"   FAIL  either fast nodes stalled, or slow nodes gated commits")
     print(f"{'='*65}\n")
 
 def save_results(samples, result):
@@ -240,7 +240,7 @@ def save_results(samples, result):
     path = os.path.join(SCRIPT_DIR, "failure-scenario-4-results.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  ≡ƒôä Results saved to: {path}")
+    print(f"   Results saved to: {path}")
 
 def run_load_generator(stop_event, port=9091, rate_per_sec=10):
     interval = 1.0 / rate_per_sec
@@ -257,11 +257,11 @@ def run_load_generator(stop_event, port=9091, rate_per_sec=10):
         time.sleep(interval)
 
 
-# ΓöÇΓöÇ Main ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Main 
 
 def main():
     print(f"\n{'='*65}")
-    print(f"  WR-RAFT FAILURE SCENARIO 4 ΓÇö TWO SLOW NODES")
+    print(f"  WR-RAFT FAILURE SCENARIO 4  TWO SLOW NODES")
     print(f"  Moderate profile on node4 + node5 | {RUN_SECONDS}s run")
     print(f"{'='*65}")
 
@@ -274,7 +274,7 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("Γ¥î Cluster failed to start")
+        print(" Cluster failed to start")
         proc.terminate()
         sys.exit(1)
 
@@ -299,7 +299,7 @@ def main():
     save_results(samples, result)
 
     stop_cluster(proc)
-    print("[scenario4] Γ£à Failure scenario 4 complete!\n")
+    print("[scenario4]  Failure scenario 4 complete!\n")
 
 if __name__ == "__main__":
     main()

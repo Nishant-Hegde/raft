@@ -20,7 +20,7 @@ METRICS_PORTS = {
     "node5": 9095,
 }
 
-# ── Metrics helpers ───────────────────────────────────────
+# -- Metrics helpers ---------------------------------------
 
 def fetch_metrics(port):
     try:
@@ -31,7 +31,7 @@ def fetch_metrics(port):
         return ""
 
 def parse_percentile(metrics_text, pct):
-    """Parse fsync_duration_ns histogram → given percentile in ms."""
+    """Parse fsync_duration_ns histogram -> given percentile in ms."""
     buckets     = {}
     total_count = 0.0
 
@@ -58,10 +58,10 @@ def parse_percentile(metrics_text, pct):
     target = (pct / 100.0) * total_count
     for le in sorted(k for k in buckets if k != math.inf):
         if buckets[le] >= target:
-            return round(le / 1_000_000, 3)  # ns → ms
+            return round(le / 1_000_000, 3)  # ns -> ms
     return None
 
-# ── Cluster helpers ───────────────────────────────────────
+# -- Cluster helpers ---------------------------------------
 
 def wait_for_cluster(timeout=60):
     print("[e2e] Waiting for all 5 nodes...", end="", flush=True)
@@ -114,7 +114,7 @@ def stop_cluster():
     time.sleep(5)
     print("[e2e] Cluster stopped ")
 
-# ── Benchmark run ─────────────────────────────────────────
+# -- Benchmark run -----------------------------------------
 
 def run_benchmark(mode_name, duration_sec, ops_per_sec):
     """
@@ -137,7 +137,7 @@ def run_benchmark(mode_name, duration_sec, ops_per_sec):
             break
         time.sleep(min(interval, remaining))
 
-    print(f"[e2e] Workload done — {ops_done} ops completed")
+    print(f"[e2e] Workload done - {ops_done} ops completed")
 
     # Collect final metrics from all nodes
     print(f"[e2e] Collecting metrics from all nodes...")
@@ -160,10 +160,10 @@ def run_benchmark(mode_name, duration_sec, ops_per_sec):
     all_p99s.sort()
 
     if mode_name == "vanilla_raft":
-        # Simple majority: need 3 of 5 — commit latency = 3rd slowest (median)
+        # Simple majority: need 3 of 5 - commit latency = 3rd slowest (median)
         commit_p99 = all_p99s[2] if len(all_p99s) >= 3 else None
     else:
-        # WR-Raft: fast nodes (node1/2/3) dominate — commit = slowest of fast 3
+        # WR-Raft: fast nodes (node1/2/3) dominate - commit = slowest of fast 3
         fast_p99s = [
             per_node[n]["p99_ms"] for n in ["node1", "node2", "node3"]
             if per_node[n]["p99_ms"] is not None
@@ -195,7 +195,7 @@ def run_benchmark(mode_name, duration_sec, ops_per_sec):
         "commit_p999_ms": round(commit_p999, 3) if commit_p999 else None,
     }
 
-# ── Print tables ──────────────────────────────────────────
+# -- Print tables ------------------------------------------
 
 def print_per_node_table(result):
     mode = result["mode"]
@@ -207,7 +207,7 @@ def print_per_node_table(result):
         p50  = r.get("p50_ms")  or 0
         p99  = r.get("p99_ms")  or 0
         p999 = r.get("p999_ms") or 0
-        tag  = " ← slow" if node in ["node4","node5"] and mode != "vanilla_raft" else ""
+        tag  = " <- slow" if node in ["node4","node5"] and mode != "vanilla_raft" else ""
         print(f"  {node:<8} {p50:>10.3f} {p99:>10.3f} {p999:>10.3f}{tag}")
     print(f"\n  Cluster commit p50:  {result['commit_p50_ms']} ms")
     print(f"  Cluster commit p99:  {result['commit_p99_ms']} ms")
@@ -227,8 +227,8 @@ def print_comparison_table(vanilla, wr, ops_per_sec):
     wp999 = wr["commit_p999_ms"]      or 0
 
     print(f"\n{'='*70}")
-    print(f"  FIRST COMPARISON TABLE — WR-Raft vs Vanilla Raft")
-    print(f"  Profile: MODERATE (5× spread) | {ops_per_sec} ops/sec | 60s")
+    print(f"  FIRST COMPARISON TABLE - WR-Raft vs Vanilla Raft")
+    print(f"  Profile: MODERATE (5 spread) | {ops_per_sec} ops/sec | 60s")
     print(f"  Workload: YCSB Workload-A (50/50 read-write)")
     print(f"{'='*70}")
     print(f"  {'Metric':<12} {'Vanilla Raft (ms)':>18} {'WR-Raft (ms)':>14} {'Improvement':>12}")
@@ -238,10 +238,10 @@ def print_comparison_table(vanilla, wr, ops_per_sec):
     print(f"  {'p999':<12} {vp999:>18.3f} {wp999:>14.3f} {imp(vp999,wp999):>11.1f}%")
     print(f"{'='*70}")
     print(f"   Positive % = WR-Raft is faster than vanilla")
-    print(f"  ℹ  p99 improvement is the key metric for the paper")
+    print(f"    p99 improvement is the key metric for the paper")
     print(f"{'='*70}\n")
 
-# ── Save results ──────────────────────────────────────────
+# -- Save results ------------------------------------------
 
 def save_results(vanilla, wr, ops_per_sec):
     out = {
@@ -256,7 +256,7 @@ def save_results(vanilla, wr, ops_per_sec):
         json.dump(out, f, indent=2)
     print(f"   Saved to: {path}")
 
-# ── Main ──────────────────────────────────────────────────
+# -- Main --------------------------------------------------
 
 def main():
     ops_per_sec  = int(sys.argv[1]) if len(sys.argv) > 1 else 1000
@@ -267,10 +267,10 @@ def main():
     print(f"  Profile: MODERATE | {ops_per_sec} ops/sec | {duration_sec}s")
     print(f"{'='*70}")
 
-    # ── RUN 1: Vanilla Raft (all nodes equal, no delay) ──
-    print(f"\n{'─'*70}")
-    print(f"  RUN 1 — Vanilla Raft (uniform cluster, all delays = 0ms)")
-    print(f"{'─'*70}")
+    # -- RUN 1: Vanilla Raft (all nodes equal, no delay) --
+    print(f"\n{'-'*70}")
+    print(f"  RUN 1 - Vanilla Raft (uniform cluster, all delays = 0ms)")
+    print(f"{'-'*70}")
 
     proc1 = start_cluster({
         "NODE1_DELAY": "0",
@@ -285,7 +285,7 @@ def main():
         proc1.terminate()
         sys.exit(1)
 
-    print("[e2e] ⏳ Warming up for 10s...")
+    print("[e2e]  Warming up for 10s...")
     time.sleep(10)
 
     vanilla_result = run_benchmark("vanilla_raft", duration_sec, ops_per_sec)
@@ -293,10 +293,10 @@ def main():
     stop_cluster()
     proc1.terminate()
 
-    # ── RUN 2: WR-Raft (moderate profile: node4/5 at 5ms) ──
-    print(f"\n{'─'*70}")
-    print(f"  RUN 2 — WR-Raft (moderate: node1/2/3=1ms, node4/5=5ms)")
-    print(f"{'─'*70}")
+    # -- RUN 2: WR-Raft (moderate profile: node4/5 at 5ms) --
+    print(f"\n{'-'*70}")
+    print(f"  RUN 2 - WR-Raft (moderate: node1/2/3=1ms, node4/5=5ms)")
+    print(f"{'-'*70}")
 
     proc2 = start_cluster({
         "NODE1_DELAY": "1",
@@ -311,7 +311,7 @@ def main():
         proc2.terminate()
         sys.exit(1)
 
-    print("[e2e] ⏳ Warming up for 10s...")
+    print("[e2e]  Warming up for 10s...")
     time.sleep(10)
 
     wr_result = run_benchmark("wr_raft", duration_sec, ops_per_sec)
@@ -319,7 +319,7 @@ def main():
     stop_cluster()
     proc2.terminate()
 
-    # ── Print comparison table ──
+    # -- Print comparison table --
     print_comparison_table(vanilla_result, wr_result, ops_per_sec)
     save_results(vanilla_result, wr_result, ops_per_sec)
 

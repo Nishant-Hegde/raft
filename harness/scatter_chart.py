@@ -3,7 +3,7 @@ import os
 import sys
 import math
 import matplotlib
-matplotlib.use("Agg")   # non-interactive backend — saves to file
+matplotlib.use("Agg")   # non-interactive backend - saves to file
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
@@ -13,13 +13,13 @@ PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 
 NODES = ["node1", "node2", "node3", "node4", "node5"]
 
-# One color per node — consistent across all charts
+# One color per node - consistent across all charts
 NODE_COLORS = {
     "node1": "#2196F3",   # blue
     "node2": "#4CAF50",   # green
     "node3": "#FF9800",   # orange
-    "node4": "#E91E63",   # pink  ← slow node
-    "node5": "#9C27B0",   # purple ← slow node
+    "node4": "#E91E63",   # pink  <- slow node
+    "node5": "#9C27B0",   # purple <- slow node
 }
 
 NODE_MARKERS = {
@@ -30,13 +30,13 @@ NODE_MARKERS = {
     "node5": "P",   # plus-filled
 }
 
-# ── Load data ─────────────────────────────────────────────
+# -- Load data ---------------------------------------------
 
 def load_results(path):
     with open(path, "r") as f:
         return json.load(f)
 
-# ── Extract points ────────────────────────────────────────
+# -- Extract points ----------------------------------------
 
 def extract_points(records):
     """
@@ -55,7 +55,7 @@ def extract_points(records):
 
     return points
 
-# ── Fit a 1/x reference curve ────────────────────────────
+# -- Fit a 1/x reference curve ----------------------------
 
 def fit_inverse_curve(all_p99, all_weights):
     """
@@ -76,7 +76,7 @@ def fit_inverse_curve(all_p99, all_weights):
 
     return x_range, y_range
 
-# ── Main chart ────────────────────────────────────────────
+# -- Main chart --------------------------------------------
 
 def build_scatter_chart(records, out_path, profile_name="moderate"):
     points = extract_points(records)
@@ -141,8 +141,8 @@ def build_scatter_chart(records, out_path, profile_name="moderate"):
     ax.set_ylabel("Assigned EWA weight",             fontsize=12, labelpad=8)
     ax.set_title(
         f"Weight vs. p99 Latency per Node\n"
-        f"Profile: {profile_name.upper()} (5× spread) — "
-        f"{len(records)} epochs × 5 nodes",
+        f"Profile: {profile_name.upper()} (5 spread) - "
+        f"{len(records)} epochs  5 nodes",
         fontsize = 13,
         pad      = 14,
     )
@@ -179,7 +179,7 @@ def build_scatter_chart(records, out_path, profile_name="moderate"):
     plt.close()
     print(f"   Chart saved to: {out_path}")
 
-# ── Second chart: weight over time per node ───────────────
+# -- Second chart: weight over time per node ---------------
 
 def build_timeseries_chart(records, out_path):
     """
@@ -231,7 +231,7 @@ def build_timeseries_chart(records, out_path):
     plt.close()
     print(f"   Time-series chart saved to: {out_path}")
 
-# ── Print stats table ─────────────────────────────────────
+# -- Print stats table -------------------------------------
 
 def print_stats_table(records):
     points = extract_points(records)
@@ -263,7 +263,7 @@ def print_stats_table(records):
     print(f"  Expected: node4/5 avg weight << node1/2/3 avg weight")
     print(f"{'='*65}\n")
 
-# ── Main ──────────────────────────────────────────────────
+# -- Main --------------------------------------------------
 
 def main():
     # Find the results file

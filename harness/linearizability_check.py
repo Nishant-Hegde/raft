@@ -25,7 +25,7 @@ METRICS_PORTS = {
 # Number of read-your-writes operations to run
 N_OPS = 200
 
-# ── Metrics helpers ───────────────────────────────────────
+# -- Metrics helpers ---------------------------------------
 
 def fetch_metrics(port):
     try:
@@ -63,7 +63,7 @@ def parse_percentile(metrics_text, pct):
     return None
 
 def fetch_fsync_count(port):
-    """Return total fsync count from Prometheus — used as write sequence number."""
+    """Return total fsync count from Prometheus - used as write sequence number."""
     text = fetch_metrics(port)
     for line in text.splitlines():
         if line.startswith("fsync_duration_ns_count "):
@@ -73,7 +73,7 @@ def fetch_fsync_count(port):
                 pass
     return 0
 
-# ── Cluster helpers ───────────────────────────────────────
+# -- Cluster helpers ---------------------------------------
 
 def wait_for_cluster(timeout=60):
     print("[check] Waiting for all 5 nodes...", end="", flush=True)
@@ -98,7 +98,7 @@ def wait_for_cluster(timeout=60):
     return False
 
 def start_cluster(env_vars):
-    print(f"\n[check] Starting cluster — delays: "
+    print(f"\n[check] Starting cluster - delays: "
           f"node1/2/3={env_vars.get('NODE1_DELAY','0')}ms "
           f"node4/5={env_vars.get('NODE4_DELAY','0')}ms")
     env = os.environ.copy()
@@ -127,12 +127,12 @@ def stop_cluster(proc):
     proc.terminate()
     print("[check] Cluster stopped ")
 
-# ── Read-your-writes checker ──────────────────────────────
+# -- Read-your-writes checker ------------------------------
 
 def simulate_write(node):
     """
     Simulate a write by reading the current fsync count from a node.
-    Returns (write_seq, latency_ms) — the sequence number after the write.
+    Returns (write_seq, latency_ms) - the sequence number after the write.
     Since our nodes simulate Raft appends internally every 100ms,
     we trigger a write by checking the /health endpoint and recording
     the fsync count before and after a small wait.
@@ -168,7 +168,7 @@ def run_checker(mode_name, n_ops):
     Run read-your-writes check for n_ops operations.
     Returns (passed, failed, violations, avg_latency_ms)
     """
-    print(f"\n[check] Running read-your-writes checker — {n_ops} ops...")
+    print(f"\n[check] Running read-your-writes checker - {n_ops} ops...")
     print(f"[check] Mode: {mode_name}")
 
     passed     = 0
@@ -185,7 +185,7 @@ def run_checker(mode_name, n_ops):
         write_seq, latency_ms, write_ok = simulate_write(write_node)
 
         if not write_ok:
-            # Write didn't produce a new fsync — skip this op
+            # Write didn't produce a new fsync - skip this op
             continue
 
         latencies.append(latency_ms)
@@ -210,32 +210,32 @@ def run_checker(mode_name, n_ops):
 
         # Progress every 50 ops
         if op % 50 == 0:
-            print(f"  [check] {op}/{n_ops} ops — "
+            print(f"  [check] {op}/{n_ops} ops - "
                   f"passed={passed} failed={failed}")
 
     avg_latency = round(sum(latencies) / len(latencies), 3) if latencies else 0
     return passed, failed, violations, avg_latency
 
-# ── Print results ─────────────────────────────────────────
+# -- Print results -----------------------------------------
 
 def print_check_result(mode_name, passed, failed, violations, avg_latency):
     total = passed + failed
     pct   = round(passed / total * 100, 1) if total > 0 else 0
 
     print(f"\n  {'='*55}")
-    print(f"  LINEARIZABILITY CHECK — {mode_name.upper()}")
+    print(f"  LINEARIZABILITY CHECK - {mode_name.upper()}")
     print(f"  {'='*55}")
     print(f"  Total ops checked : {total}")
     print(f"  Passed            : {passed}  ({pct}%)")
     print(f"  Failed/Violations : {failed}")
     print(f"  Avg write latency : {avg_latency} ms")
-    print(f"  {'─'*55}")
+    print(f"  {'-'*55}")
 
     if failed == 0:
-        print(f"   PASS — No linearizability violations found")
+        print(f"   PASS - No linearizability violations found")
         print(f"   Read-your-writes consistency verified")
     else:
-        print(f"   FAIL — {failed} violations detected!")
+        print(f"   FAIL - {failed} violations detected!")
         print(f"  First violation:")
         v = violations[0]
         print(f"    Op {v['op']}: wrote seq={v['write_seq']} "
@@ -244,7 +244,7 @@ def print_check_result(mode_name, passed, failed, violations, avg_latency):
 
     print(f"  {'='*55}\n")
 
-# ── Final comparison table ────────────────────────────────
+# -- Final comparison table --------------------------------
 
 def print_final_table(vanilla_res, wr_res):
     v_passed, v_failed, _, v_lat = vanilla_res
@@ -268,13 +268,13 @@ def print_final_table(vanilla_res, wr_res):
     print(f"{'='*65}")
 
     if v_failed == 0 and w_failed == 0:
-        print(f"   BOTH PASS — WR-Raft is correct under moderate profile")
+        print(f"   BOTH PASS - WR-Raft is correct under moderate profile")
         print(f"   No read-your-writes violations in either mode")
     else:
-        print(f"  ️  Violations detected — review logs above")
+        print(f"    Violations detected - review logs above")
     print(f"{'='*65}\n")
 
-# ── Save results ──────────────────────────────────────────
+# -- Save results ------------------------------------------
 
 def save_results(vanilla_res, wr_res):
     v_passed, v_failed, v_violations, v_lat = vanilla_res
@@ -302,7 +302,7 @@ def save_results(vanilla_res, wr_res):
         json.dump(out, f, indent=2)
     print(f"   Results saved to: {path}")
 
-# ── Main ──────────────────────────────────────────────────
+# -- Main --------------------------------------------------
 
 def main():
     print(f"\n{'='*65}")
@@ -311,10 +311,10 @@ def main():
     print(f"  Profile: MODERATE (node4/5 = 5ms delay)")
     print(f"{'='*65}")
 
-    # ── Run 1: Vanilla Raft ──
-    print(f"\n{'─'*65}")
-    print(f"  RUN 1 — Vanilla Raft (all delays = 0ms)")
-    print(f"{'─'*65}")
+    # -- Run 1: Vanilla Raft --
+    print(f"\n{'-'*65}")
+    print(f"  RUN 1 - Vanilla Raft (all delays = 0ms)")
+    print(f"{'-'*65}")
 
     proc = start_cluster({
         "NODE1_DELAY": "0",
@@ -329,20 +329,20 @@ def main():
         proc.terminate()
         sys.exit(1)
 
-    print("[check] ⏳ Warming up 10s...")
+    print("[check]  Warming up 10s...")
     time.sleep(10)
 
     vanilla_res = run_checker("vanilla_raft", N_OPS)
     print_check_result("vanilla_raft", *vanilla_res)
     stop_cluster(proc)
 
-    print("[check] ⏳ Pausing 10s before next run...")
+    print("[check]  Pausing 10s before next run...")
     time.sleep(10)
 
-    # ── Run 2: WR-Raft ──
-    print(f"\n{'─'*65}")
-    print(f"  RUN 2 — WR-Raft (moderate: node1/2/3=1ms, node4/5=5ms)")
-    print(f"{'─'*65}")
+    # -- Run 2: WR-Raft --
+    print(f"\n{'-'*65}")
+    print(f"  RUN 2 - WR-Raft (moderate: node1/2/3=1ms, node4/5=5ms)")
+    print(f"{'-'*65}")
 
     proc = start_cluster({
         "NODE1_DELAY": "1",
@@ -357,14 +357,14 @@ def main():
         proc.terminate()
         sys.exit(1)
 
-    print("[check] ⏳ Warming up 10s...")
+    print("[check]  Warming up 10s...")
     time.sleep(10)
 
     wr_res = run_checker("wr_raft", N_OPS)
     print_check_result("wr_raft", *wr_res)
     stop_cluster(proc)
 
-    # ── Final summary ──
+    # -- Final summary --
     print_final_table(vanilla_res, wr_res)
     save_results(vanilla_res, wr_res)
 

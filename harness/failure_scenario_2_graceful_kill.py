@@ -26,7 +26,7 @@ TOTAL_RUN_SECONDS   = 90   # total scenario length
 KILL_AT_SECOND      = 20   # when to stop node3
 SAMPLE_EVERY        = 2    # seconds between samples
 
-# ΓöÇΓöÇ Metrics helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Metrics helpers 
 
 def fetch_metrics(port):
     try:
@@ -64,7 +64,7 @@ def parse_percentile(metrics_text, pct):
     return None
 
 def fetch_fsync_count(port):
-    """Total fsync count ΓÇö used as a proxy for 'is this node still committing writes'."""
+    """Total fsync count  used as a proxy for 'is this node still committing writes'."""
     text = fetch_metrics(port)
     for line in text.splitlines():
         if line.startswith("fsync_duration_ns_count "):
@@ -81,7 +81,7 @@ def node_is_up(port):
     except Exception:
         return False
 
-# ΓöÇΓöÇ Cluster helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Cluster helpers 
 
 def wait_for_cluster(timeout=60):
     print("[scenario2] Waiting for all 5 nodes...", end="", flush=True)
@@ -89,15 +89,15 @@ def wait_for_cluster(timeout=60):
     while time.time() < deadline:
         up = sum(1 for n in NODES if node_is_up(METRICS_PORTS[n]))
         if up == len(NODES):
-            print(f" Γ£à All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" Γ¥î Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
-    print(f"\n[scenario2] Starting cluster ΓÇö mild uniform delays (1ms all nodes)")
+    print(f"\n[scenario2] Starting cluster  mild uniform delays (1ms all nodes)")
     env = os.environ.copy()
     env.update(env_vars)
     subprocess.run(
@@ -122,29 +122,29 @@ def stop_cluster(proc):
     )
     time.sleep(5)
     proc.terminate()
-    print("[scenario2] Cluster stopped Γ£à")
+    print("[scenario2] Cluster stopped ")
 
 def graceful_stop_node(node_name):
     """
     Gracefully stop a single node's container using `docker compose stop`.
-    This sends SIGTERM (not SIGKILL) ΓÇö a clean shutdown.
+    This sends SIGTERM (not SIGKILL)  a clean shutdown.
     Assumes the docker-compose service name matches node_name (e.g. 'node3').
     """
-    print(f"\n[scenario2] ≡ƒö╗ Gracefully stopping {node_name} (docker compose stop)...")
+    print(f"\n[scenario2]  Gracefully stopping {node_name} (docker compose stop)...")
     result = subprocess.run(
         ["docker", "compose", "stop", node_name],
         cwd=PROJECT_DIR, capture_output=True, text=True
     )
     if result.returncode != 0:
-        print(f"[scenario2] ΓÜá∩╕Å docker compose stop returned non-zero: {result.stderr.strip()}")
+        print(f"[scenario2]  docker compose stop returned non-zero: {result.stderr.strip()}")
     else:
-        print(f"[scenario2] {node_name} stopped Γ£à")
+        print(f"[scenario2] {node_name} stopped ")
 
-# ΓöÇΓöÇ Sampling loop ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Sampling loop 
 
 def run_scenario():
-    print(f"\n[scenario2] Running for {TOTAL_RUN_SECONDS}s ΓÇö "
-          f"killing {NODE_TO_KILL} at t={KILL_AT_SECOND}s ΓÇö "
+    print(f"\n[scenario2] Running for {TOTAL_RUN_SECONDS}s  "
+          f"killing {NODE_TO_KILL} at t={KILL_AT_SECOND}s  "
           f"sampling every {SAMPLE_EVERY}s...")
 
     samples   = []
@@ -189,20 +189,20 @@ def run_scenario():
 
         samples.append(row)
 
-        status = "≡ƒö╗ DOWN" if not row.get(f"{NODE_TO_KILL}_up") else "up"
+        status = " DOWN" if not row.get(f"{NODE_TO_KILL}_up") else "up"
         print(f"  [t={tick:>3}s] {NODE_TO_KILL}={status:<8} "
               f"commit_p99_proxy={row['commit_p99_proxy_ms']}ms  "
               f"alive_fsync_sum={row['alive_nodes_fsync_sum']}")
 
     return samples
 
-# ΓöÇΓöÇ Verdict ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Verdict 
 
 def evaluate(samples):
     kill_index = next((i for i, r in enumerate(samples) if r["node3_killed"]), None)
 
     if kill_index is None:
-        return {"error": "node3 was never killed during the run ΓÇö check timing"}
+        return {"error": "node3 was never killed during the run  check timing"}
 
     before = samples[:kill_index]
     # "blip window" = first 3 samples right after kill
@@ -246,10 +246,10 @@ def evaluate(samples):
 
 def print_result(result):
     print(f"\n{'='*65}")
-    print(f"  FAILURE SCENARIO 2 ΓÇö ONE CRASHED NODE (graceful, node3)")
+    print(f"  FAILURE SCENARIO 2  ONE CRASHED NODE (graceful, node3)")
     print(f"{'='*65}")
     if "error" in result:
-        print(f"  Γ¥î {result['error']}")
+        print(f"   {result['error']}")
         print(f"{'='*65}\n")
         return
     print(f"  Avg commit-latency proxy BEFORE kill : {result['avg_latency_before_ms']} ms")
@@ -259,9 +259,9 @@ def print_result(result):
     print(f"  Latency recovered to near-normal      : {result['latency_recovered']}")
     print(f"  {'-'*63}")
     if result["passed"]:
-        print(f"  Γ£à PASS ΓÇö cluster survived node3 loss and recovered")
+        print(f"   PASS  cluster survived node3 loss and recovered")
     else:
-        print(f"  Γ¥î FAIL ΓÇö cluster either stopped committing or latency stayed high")
+        print(f"   FAIL  cluster either stopped committing or latency stayed high")
     print(f"{'='*65}\n")
 
 def save_results(samples, result):
@@ -277,7 +277,7 @@ def save_results(samples, result):
     path = os.path.join(SCRIPT_DIR, "failure-scenario-2-results.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  ≡ƒôä Results saved to: {path}")
+    print(f"   Results saved to: {path}")
 
 def run_load_generator(stop_event, port=9091, rate_per_sec=10):
     interval = 1.0 / rate_per_sec
@@ -293,11 +293,11 @@ def run_load_generator(stop_event, port=9091, rate_per_sec=10):
             pass
         time.sleep(interval)   
 
-# ΓöÇΓöÇ Main ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Main 
 
 def main():
     print(f"\n{'='*65}")
-    print(f"  WR-RAFT FAILURE SCENARIO 2 ΓÇö GRACEFUL NODE KILL")
+    print(f"  WR-RAFT FAILURE SCENARIO 2  GRACEFUL NODE KILL")
     print(f"  Node: {NODE_TO_KILL} | Kill at t={KILL_AT_SECOND}s | "
           f"Total run: {TOTAL_RUN_SECONDS}s")
     print(f"{'='*65}")
@@ -311,11 +311,11 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("Γ¥î Cluster failed to start")
+        print(" Cluster failed to start")
         proc.terminate()
         sys.exit(1)
 
-    print("[scenario2] ΓÅ│ Warming up 10s...")
+    print("[scenario2] | Warming up 10s...")
     time.sleep(10)
     stop_load = threading.Event()
     load_thread = threading.Thread(
@@ -333,7 +333,7 @@ def main():
     save_results(samples, result)
 
     stop_cluster(proc)
-    print("[scenario2] Γ£à Failure scenario 2 complete!\n")
+    print("[scenario2]  Failure scenario 2 complete!\n")
 
 if __name__ == "__main__":
     main()

@@ -9,7 +9,7 @@ from datetime import datetime
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 
-# ── Config ──────────────────────────────────────────────
+# -- Config ----------------------------------------------
 NODES = ["node1", "node2", "node3", "node4", "node5"]
 
 METRICS_PORTS = {
@@ -24,7 +24,7 @@ SAMPLE_INTERVAL_SEC = 10   # how often to sample
 TOTAL_DURATION_SEC  = 300  # 5 minutes total
 EWA_ALPHA           = 0.2  # smoothing factor (same as Intern B will use)
 
-# ── Metrics helpers ──────────────────────────────────────
+# -- Metrics helpers --------------------------------------
 
 def fetch_metrics(port):
     try:
@@ -35,7 +35,7 @@ def fetch_metrics(port):
         return ""
 
 def parse_p99(metrics_text):
-    """Parse fsync_duration_ns histogram → p99 in ms."""
+    """Parse fsync_duration_ns histogram -> p99 in ms."""
     buckets     = {}
     total_count = 0.0
 
@@ -62,10 +62,10 @@ def parse_p99(metrics_text):
     target = 0.99 * total_count
     for le in sorted(k for k in buckets if k != math.inf):
         if buckets[le] >= target:
-            return round(le / 1_000_000, 3)   # ns → ms
+            return round(le / 1_000_000, 3)   # ns -> ms
     return None
 
-# ── Weight computation ───────────────────────────────────
+# -- Weight computation -----------------------------------
 
 def compute_weights(p99_map):
     """
@@ -106,7 +106,7 @@ def apply_ewa(prev_weights, new_weights, alpha):
         for node in NODES
     }
 
-# ── Sampling loop ────────────────────────────────────────
+# -- Sampling loop ----------------------------------------
 
 def run_sampler(duration_sec, interval_sec):
     """
@@ -118,7 +118,7 @@ def run_sampler(duration_sec, interval_sec):
     prev_weights = None
 
     print(f"\n{'='*65}")
-    print(f"  WEIGHT SAMPLER — moderate profile (5× spread)")
+    print(f"  WEIGHT SAMPLER - moderate profile (5 spread)")
     print(f"  Sampling every {interval_sec}s for {duration_sec}s "
           f"({epochs} epochs total)")
     print(f"  EWA alpha = {EWA_ALPHA}")
@@ -167,12 +167,12 @@ def run_sampler(duration_sec, interval_sec):
 
         # Wait for next interval (unless last epoch)
         if epoch < epochs:
-            print(f"  ⏳ Next sample in {interval_sec}s...\n")
+            print(f"   Next sample in {interval_sec}s...\n")
             time.sleep(interval_sec)
 
     return all_records
 
-# ── Summary table ────────────────────────────────────────
+# -- Summary table ----------------------------------------
 
 def print_summary(all_records):
     """Print a clean per-node summary across all epochs."""
@@ -187,7 +187,7 @@ def print_summary(all_records):
             node_weight[node].append(rec["ewa_weight"][node])
 
     print(f"\n{'='*65}")
-    print(f"  SUMMARY — Average over {len(all_records)} epochs")
+    print(f"  SUMMARY - Average over {len(all_records)} epochs")
     print(f"{'='*65}")
     print(f"  {'Node':<8} {'Avg p99 (ms)':>14} {'Avg EWA weight':>16} "
           f"{'Expected':>10}")
@@ -215,7 +215,7 @@ def print_summary(all_records):
     print(f"   Slow nodes (node4/5)   should show LOWER  weight")
     print(f"{'='*65}\n")
 
-# ── Save results ─────────────────────────────────────────
+# -- Save results -----------------------------------------
 
 def save_results(all_records):
     out_path = os.path.join(SCRIPT_DIR, "weight-sampler-results.json")
@@ -224,7 +224,7 @@ def save_results(all_records):
     print(f"   Results saved to: {out_path}")
     return out_path
 
-# ── Main ─────────────────────────────────────────────────
+# -- Main -------------------------------------------------
 
 def main():
     duration = TOTAL_DURATION_SEC

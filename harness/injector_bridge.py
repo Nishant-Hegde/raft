@@ -25,7 +25,7 @@ def apply_profile(profile_name):
 
 def reset_all():
     """
-    Resets all latency rules — calls inject.py reset.
+    Resets all latency rules - calls inject.py reset.
     """
     print(f"\n[Harness] Resetting all latency rules...")
     result = subprocess.run(
@@ -33,7 +33,7 @@ def reset_all():
         capture_output=False
     )
     if result.returncode != 0:
-        print(f"[Harness] ️  Reset may have failed")
+        print(f"[Harness]   Reset may have failed")
     else:
         print(f"[Harness]  All nodes reset to zero delay")
 

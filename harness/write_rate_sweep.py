@@ -26,7 +26,7 @@ WRITE_RATES = [500, 1000, 2000]
 # Duration per run in seconds
 DURATION_SEC = 60
 
-# ── Metrics helpers ───────────────────────────────────────
+# -- Metrics helpers ---------------------------------------
 
 def fetch_metrics(port):
     try:
@@ -66,7 +66,7 @@ def parse_percentile(metrics_text, pct):
             return round(le / 1_000_000, 3)
     return None
 
-# ── Cluster helpers ───────────────────────────────────────
+# -- Cluster helpers ---------------------------------------
 
 def wait_for_cluster(timeout=60):
     print("[sweep] Waiting for all 5 nodes...", end="", flush=True)
@@ -91,7 +91,7 @@ def wait_for_cluster(timeout=60):
     return False
 
 def start_cluster(env_vars):
-    print(f"\n[sweep] Starting cluster — delays: "
+    print(f"\n[sweep] Starting cluster - delays: "
           f"node1/2/3={env_vars.get('NODE1_DELAY','0')}ms "
           f"node4/5={env_vars.get('NODE4_DELAY','0')}ms")
     env = os.environ.copy()
@@ -120,7 +120,7 @@ def stop_cluster(proc):
     proc.terminate()
     print("[sweep] Cluster stopped ")
 
-# ── Single benchmark run ──────────────────────────────────
+# -- Single benchmark run ----------------------------------
 
 def run_one(mode_name, ops_per_sec, duration_sec):
     """Run workload and collect p50/p99/p999 commit latency."""
@@ -139,7 +139,7 @@ def run_one(mode_name, ops_per_sec, duration_sec):
             break
         time.sleep(min(interval, remaining))
 
-    print(f"[sweep] Done — {ops_done} ops")
+    print(f"[sweep] Done - {ops_done} ops")
 
     # Collect per-node metrics
     per_node = {}
@@ -153,7 +153,7 @@ def run_one(mode_name, ops_per_sec, duration_sec):
 
     # Compute cluster commit latency
     if mode_name == "vanilla_raft":
-        # Simple majority: 3 of 5 — commit waits for 3rd slowest
+        # Simple majority: 3 of 5 - commit waits for 3rd slowest
         all_p50s  = sorted([per_node[n]["p50_ms"]  for n in NODES if per_node[n]["p50_ms"]  is not None])
         all_p99s  = sorted([per_node[n]["p99_ms"]  for n in NODES if per_node[n]["p99_ms"]  is not None])
         all_p999s = sorted([per_node[n]["p999_ms"] for n in NODES if per_node[n]["p999_ms"] is not None])
@@ -180,7 +180,7 @@ def run_one(mode_name, ops_per_sec, duration_sec):
         "timestamp":      datetime.utcnow().isoformat(),
     }
 
-# ── Print combined table ──────────────────────────────────
+# -- Print combined table ----------------------------------
 
 def print_sweep_table(all_results):
     """Print combined table: rows = write rates, cols = vanilla vs WR-Raft."""
@@ -191,8 +191,8 @@ def print_sweep_table(all_results):
         return round((v - w) / v * 100, 1)
 
     print(f"\n{'='*75}")
-    print(f"  WRITE RATE SWEEP — WR-Raft vs Vanilla Raft")
-    print(f"  Profile: MODERATE (5× spread) | 3 write rates | 60s each")
+    print(f"  WRITE RATE SWEEP - WR-Raft vs Vanilla Raft")
+    print(f"  Profile: MODERATE (5 spread) | 3 write rates | 60s each")
     print(f"{'='*75}")
     print(f"  {'Rate':>8}  {'Metric':<6}  "
           f"{'Vanilla (ms)':>13}  {'WR-Raft (ms)':>13}  {'Improvement':>12}")
@@ -222,15 +222,15 @@ def print_sweep_table(all_results):
 
     print(f"{'='*75}")
     print(f"   Positive % = WR-Raft faster | Key metric = p99")
-    print(f"  ℹ  Improvement should grow as write rate increases")
+    print(f"    Improvement should grow as write rate increases")
     print(f"{'='*75}\n")
 
 def print_progress(rate, mode):
-    print(f"\n{'─'*75}")
+    print(f"\n{'-'*75}")
     print(f"  [{rate} ops/sec] {mode}")
-    print(f"{'─'*75}")
+    print(f"{'-'*75}")
 
-# ── Save results ──────────────────────────────────────────
+# -- Save results ------------------------------------------
 
 def save_results(all_results):
     path = os.path.join(SCRIPT_DIR, "write-rate-sweep-results.json")
@@ -238,7 +238,7 @@ def save_results(all_results):
         json.dump(all_results, f, indent=2)
     print(f"\n   All results saved to: {path}")
 
-# ── Main ──────────────────────────────────────────────────
+# -- Main --------------------------------------------------
 
 def main():
     print(f"\n{'='*75}")
@@ -246,7 +246,7 @@ def main():
     print(f"  Rates: {WRITE_RATES} ops/sec")
     print(f"  Duration: {DURATION_SEC}s per run")
     print(f"  Total runs: {len(WRITE_RATES) * 2} "
-          f"({len(WRITE_RATES)} rates × 2 modes)")
+          f"({len(WRITE_RATES)} rates  2 modes)")
     print(f"  Estimated time: ~{len(WRITE_RATES) * 2 * (DURATION_SEC + 60) // 60} minutes")
     print(f"{'='*75}")
 
@@ -254,8 +254,8 @@ def main():
 
     for rate in WRITE_RATES:
 
-        # ── Vanilla Raft run ──
-        print_progress(rate, "Vanilla Raft — all delays = 0ms")
+        # -- Vanilla Raft run --
+        print_progress(rate, "Vanilla Raft - all delays = 0ms")
         proc = start_cluster({
             "NODE1_DELAY": "0",
             "NODE2_DELAY": "0",
@@ -269,7 +269,7 @@ def main():
             proc.terminate()
             continue
 
-        print("[sweep] ⏳ Warming up 10s...")
+        print("[sweep]  Warming up 10s...")
         time.sleep(10)
 
         vanilla_result = run_one("vanilla_raft", rate, DURATION_SEC)
@@ -277,11 +277,11 @@ def main():
         stop_cluster(proc)
 
         # brief pause between runs
-        print("[sweep] ⏳ Pausing 10s before next run...")
+        print("[sweep]  Pausing 10s before next run...")
         time.sleep(10)
 
-        # ── WR-Raft run ──
-        print_progress(rate, "WR-Raft — node1/2/3=1ms, node4/5=5ms")
+        # -- WR-Raft run --
+        print_progress(rate, "WR-Raft - node1/2/3=1ms, node4/5=5ms")
         proc = start_cluster({
             "NODE1_DELAY": "1",
             "NODE2_DELAY": "1",
@@ -295,7 +295,7 @@ def main():
             proc.terminate()
             continue
 
-        print("[sweep] ⏳ Warming up 10s...")
+        print("[sweep]  Warming up 10s...")
         time.sleep(10)
 
         wr_result = run_one("wr_raft", rate, DURATION_SEC)
@@ -308,7 +308,7 @@ def main():
               f"WR-Raft p99: {wr_result['commit_p99_ms']} ms")
 
         if rate != WRITE_RATES[-1]:
-            print("[sweep] ⏳ Pausing 10s before next rate...")
+            print("[sweep]  Pausing 10s before next rate...")
             time.sleep(10)
 
     # Print final combined table

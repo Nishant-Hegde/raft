@@ -13,7 +13,7 @@ PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 
 WRITE_RATES = [500, 1000, 2000]
 
-# ── Load data ─────────────────────────────────────────────
+# -- Load data ---------------------------------------------
 
 def load_sweep_results():
     path = os.path.join(SCRIPT_DIR, "write-rate-sweep-results.json")
@@ -31,7 +31,7 @@ def load_e2e_result():
     with open(path) as f:
         return json.load(f)
 
-# ── Extract numbers ───────────────────────────────────────
+# -- Extract numbers ---------------------------------------
 
 def extract_row(sweep, rate):
     """Pull vanilla and WR-Raft p50/p99/p999 for a given rate."""
@@ -53,12 +53,12 @@ def improvement(v, w):
         return 0.0
     return round((v - w) / v * 100, 1)
 
-# ── Print comparison table ────────────────────────────────
+# -- Print comparison table --------------------------------
 
 def print_comparison_table(rows):
     print(f"\n{'='*78}")
-    print(f"  WEEK 4 COMPARISON TABLE — WR-Raft vs Vanilla Raft")
-    print(f"  Profile: MODERATE (5× spread) | 3 write rates | 60s each")
+    print(f"  WEEK 4 COMPARISON TABLE - WR-Raft vs Vanilla Raft")
+    print(f"  Profile: MODERATE (5 spread) | 3 write rates | 60s each")
     print(f"  Workload: YCSB Workload-A (50/50 read-write)")
     print(f"{'='*78}")
     print(f"  {'Rate':<12} {'Metric':<6} "
@@ -81,10 +81,10 @@ def print_comparison_table(rows):
 
     print(f"{'='*78}")
     print(f"   Positive % = WR-Raft faster than vanilla Raft")
-    print(f"  ℹ  p99 is the key metric — tail latency improvement")
+    print(f"    p99 is the key metric - tail latency improvement")
     print(f"{'='*78}\n")
 
-# ── Save table as JSON ────────────────────────────────────
+# -- Save table as JSON ------------------------------------
 
 def save_table(rows):
     path = os.path.join(SCRIPT_DIR, "week4-comparison-table.json")
@@ -99,13 +99,13 @@ def save_table(rows):
         json.dump(out, f, indent=2)
     print(f"   Table saved to: {path}")
 
-# ── Build bar chart ───────────────────────────────────────
+# -- Build bar chart ---------------------------------------
 
 def build_bar_chart(rows):
     """
     Grouped bar chart: x = write rate, two bars per rate
     (vanilla Raft in grey, WR-Raft in blue).
-    Shows p99 only — the key metric.
+    Shows p99 only - the key metric.
     """
     rates       = [str(r["rate"]) for r in rows]
     vanilla_p99 = [r["v_p99"] for r in rows]
@@ -155,10 +155,10 @@ def build_bar_chart(rows):
     for i, row in enumerate(rows):
         imp = improvement(row["v_p99"], row["w_p99"])
         if imp > 0:
-            label = f"↓{imp}%"
+            label = f"{imp}%"
             color = "#2E7D32"
         elif imp < 0:
-            label = f"↑{abs(imp)}%"
+            label = f"{abs(imp)}%"
             color = "#C62828"
         else:
             label = "0%"
@@ -173,8 +173,8 @@ def build_bar_chart(rows):
     ax.set_xlabel("Write Rate (ops/sec)", fontsize=12, labelpad=8)
     ax.set_ylabel("p99 Commit Latency (ms)", fontsize=12, labelpad=8)
     ax.set_title(
-        "WR-Raft vs Vanilla Raft — p99 Commit Latency\n"
-        "Profile: MODERATE (5× spread) | YCSB Workload-A",
+        "WR-Raft vs Vanilla Raft - p99 Commit Latency\n"
+        "Profile: MODERATE (5 spread) | YCSB Workload-A",
         fontsize=13, pad=14,
     )
     ax.set_xticks(x)
@@ -190,7 +190,7 @@ def build_bar_chart(rows):
     print(f"   Bar chart saved to: {out_path}")
     return out_path
 
-# ── Build p50/p99/p999 line chart ─────────────────────────
+# -- Build p50/p99/p999 line chart -------------------------
 
 def build_line_chart(rows):
     """
@@ -202,7 +202,7 @@ def build_line_chart(rows):
     fig, axes = plt.subplots(1, 3, figsize=(14, 5), sharey=False)
     fig.patch.set_facecolor("#FAFAFA")
     fig.suptitle(
-        "Commit Latency vs Write Rate — WR-Raft vs Vanilla Raft\n"
+        "Commit Latency vs Write Rate - WR-Raft vs Vanilla Raft\n"
         "Profile: MODERATE | YCSB Workload-A",
         fontsize=12,
     )
@@ -239,7 +239,7 @@ def build_line_chart(rows):
     print(f"   Line chart saved to: {out_path}")
     return out_path
 
-# ── Main ──────────────────────────────────────────────────
+# -- Main --------------------------------------------------
 
 def main():
     print(f"\n{'='*78}")
@@ -273,8 +273,8 @@ def main():
     print(f"     explorer {SCRIPT_DIR}")
     print(f"\n  Files generated:")
     print(f"     week4-comparison-table.json")
-    print(f"     week4-p99-comparison-chart.png  ← main deliverable")
-    print(f"     week4-latency-lines.png          ← supporting chart")
+    print(f"     week4-p99-comparison-chart.png  <- main deliverable")
+    print(f"     week4-latency-lines.png          <- supporting chart")
 
 if __name__ == "__main__":
     main()

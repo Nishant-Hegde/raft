@@ -24,7 +24,7 @@ METRICS_PORTS = {
 RUN_SECONDS   = 120
 SAMPLE_EVERY  = 5   # seconds between samples
 
-# ── Metrics helpers ───────────────────────────────────────
+# -- Metrics helpers ---------------------------------------
 
 def fetch_metrics(port):
     try:
@@ -85,7 +85,7 @@ def fetch_commit_latency_p99(port):
             pass
     return parse_percentile(text, 99)
 
-# ── Cluster helpers ───────────────────────────────────────
+# -- Cluster helpers ---------------------------------------
 
 def wait_for_cluster(timeout=60):
     print("[scenario1] Waiting for all 5 nodes...", end="", flush=True)
@@ -102,15 +102,15 @@ def wait_for_cluster(timeout=60):
             except Exception:
                 pass
         if up == len(NODES):
-            print(f" ✅ All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" ❌ Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
-    print(f"\n[scenario1] Starting cluster — delays: "
+    print(f"\n[scenario1] Starting cluster - delays: "
           f"node1-4={env_vars.get('NODE1_DELAY','0')}ms "
           f"node5={env_vars.get('NODE5_DELAY','0')}ms")
     env = os.environ.copy()
@@ -137,12 +137,12 @@ def stop_cluster(proc):
     )
     time.sleep(5)
     proc.terminate()
-    print("[scenario1] Cluster stopped ✅")
+    print("[scenario1] Cluster stopped ")
 
-# ── Sampling loop ─────────────────────────────────────────
+# -- Sampling loop -----------------------------------------
 
 def run_scenario(stop_event):
-    print(f"\n[scenario1] Running for {RUN_SECONDS}s — sampling every {SAMPLE_EVERY}s...")
+    print(f"\n[scenario1] Running for {RUN_SECONDS}s - sampling every {SAMPLE_EVERY}s...")
     samples = []
     start = time.time()
     tick = 0
@@ -169,7 +169,7 @@ def run_scenario(stop_event):
     stop_event.set()
     return samples
 
-# ── Verdict ───────────────────────────────────────────────
+# -- Verdict -----------------------------------------------
 
 def evaluate(samples):
     fast_node_p99s   = []
@@ -215,7 +215,7 @@ def evaluate(samples):
 
 def print_result(result):
     print(f"\n{'='*65}")
-    print(f"  FAILURE SCENARIO 1 — ONE SLOW NODE (severe profile, node5)")
+    print(f"  FAILURE SCENARIO 1 - ONE SLOW NODE (severe profile, node5)")
     print(f"{'='*65}")
     print(f"  Avg fast-node p99 (node1-4) : {result['avg_fast_node_p99_ms']} ms")
     print(f"  Avg node5 p99               : {result['avg_node5_p99_ms']} ms")
@@ -223,11 +223,11 @@ def print_result(result):
     print(f"  Final node5 weight          : {result['final_node5_weight']}")
     print(f"  {'-'*63}")
     if not result["node5_on_critical_path"]:
-        print(f"  ✅ PASS — node5 never on critical path")
-        print(f"  ✅ Cluster commit latency tracks fast nodes, not node5")
+        print(f"   PASS - node5 never on critical path")
+        print(f"   Cluster commit latency tracks fast nodes, not node5")
     else:
-        print(f"  ❌ FAIL — node5 appears to be on the critical path")
-        print(f"  ❌ Cluster commit latency tracks node5's slow latency")
+        print(f"   FAIL - node5 appears to be on the critical path")
+        print(f"   Cluster commit latency tracks node5's slow latency")
     print(f"{'='*65}\n")
 
 def save_results(samples, result):
@@ -241,7 +241,7 @@ def save_results(samples, result):
     path = os.path.join(SCRIPT_DIR, "failure-scenario-1-results.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  📄 Results saved to: {path}")
+    print(f"   Results saved to: {path}")
 
 def run_load_generator(stop_event, port=9091, rate_per_sec=10):
     interval = 1.0 / rate_per_sec
@@ -257,11 +257,11 @@ def run_load_generator(stop_event, port=9091, rate_per_sec=10):
             pass
         time.sleep(interval)
 
-# ── Main ──────────────────────────────────────────────────
+# -- Main --------------------------------------------------
 
 def main():
     print(f"\n{'='*65}")
-    print(f"  WR-RAFT FAILURE SCENARIO 1 — ONE SLOW NODE")
+    print(f"  WR-RAFT FAILURE SCENARIO 1 - ONE SLOW NODE")
     print(f"  Severe profile applied to node5 only | {RUN_SECONDS}s run")
     print(f"{'='*65}")
 
@@ -274,11 +274,11 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("❌ Cluster failed to start")
+        print(" Cluster failed to start")
         proc.terminate()
         sys.exit(1)
 
-    print("[scenario1] ⏳ Warming up 10s...")
+    print("[scenario1]  Warming up 10s...")
     time.sleep(10)
     stop_load = threading.Event()
     load_thread = threading.Thread(
@@ -287,7 +287,7 @@ def main():
         daemon=True
     )
     load_thread.start()
-    print("[scenario1] 🔥 Load generator started")
+    print("[scenario1]  Load generator started")
 
     samples = run_scenario(stop_load)
     result  = evaluate(samples)
@@ -295,7 +295,7 @@ def main():
     save_results(samples, result)
 
     stop_cluster(proc)
-    print("[scenario1] ✅ Failure scenario 1 complete!\n")
+    print("[scenario1]  Failure scenario 1 complete!\n")
 
 if __name__ == "__main__":
     main()

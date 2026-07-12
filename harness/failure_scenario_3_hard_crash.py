@@ -30,7 +30,7 @@ SAMPLE_EVERY        = 2    # seconds between samples
 
 # RESTART_AT_SECOND = KILL_AT_SECOND + DOWNTIME_SECONDS = 50
 
-# ΓöÇΓöÇ Metrics helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Metrics helpers 
 
 def fetch_metrics(port):
     try:
@@ -84,7 +84,7 @@ def node_is_up(port):
     except Exception:
         return False
 
-# ΓöÇΓöÇ Cluster helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Cluster helpers 
 
 def wait_for_cluster(timeout=60):
     print("[scenario3] Waiting for all 5 nodes...", end="", flush=True)
@@ -92,15 +92,15 @@ def wait_for_cluster(timeout=60):
     while time.time() < deadline:
         up = sum(1 for n in NODES if node_is_up(METRICS_PORTS[n]))
         if up == len(NODES):
-            print(f" Γ£à All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" Γ¥î Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
-    print(f"\n[scenario3] Starting cluster ΓÇö mild uniform delays (1ms all nodes)")
+    print(f"\n[scenario3] Starting cluster  mild uniform delays (1ms all nodes)")
     env = os.environ.copy()
     env.update(env_vars)
     subprocess.run(
@@ -125,39 +125,39 @@ def stop_cluster(proc):
     )
     time.sleep(5)
     proc.terminate()
-    print("[scenario3] Cluster stopped Γ£à")
+    print("[scenario3] Cluster stopped ")
 
 def sigkill_node(node_name):
-    """Hard-kill a container ΓÇö SIGKILL, no graceful shutdown."""
-    print(f"\n[scenario3] ≡ƒÆÑ SIGKILL {node_name} (docker kill)...")
+    """Hard-kill a container  SIGKILL, no graceful shutdown."""
+    print(f"\n[scenario3]  SIGKILL {node_name} (docker kill)...")
     result = subprocess.run(
         ["docker", "kill", "--signal=SIGKILL", node_name],
         cwd=PROJECT_DIR, capture_output=True, text=True
     )
     if result.returncode != 0:
-        print(f"[scenario3] ΓÜá∩╕Å docker kill returned non-zero: {result.stderr.strip()}")
+        print(f"[scenario3]  docker kill returned non-zero: {result.stderr.strip()}")
     else:
-        print(f"[scenario3] {node_name} killed Γ£à")
+        print(f"[scenario3] {node_name} killed ")
 
 def restart_node(node_name):
     """Bring a killed container back up via docker compose start."""
-    print(f"\n[scenario3] ≡ƒöü Restarting {node_name} (docker compose start)...")
+    print(f"\n[scenario3]  Restarting {node_name} (docker compose start)...")
     result = subprocess.run(
         ["docker", "compose", "start", node_name],
         cwd=PROJECT_DIR, capture_output=True, text=True
     )
     if result.returncode != 0:
-        print(f"[scenario3] ΓÜá∩╕Å docker compose start returned non-zero: {result.stderr.strip()}")
+        print(f"[scenario3]  docker compose start returned non-zero: {result.stderr.strip()}")
     else:
-        print(f"[scenario3] {node_name} restarted Γ£à")
+        print(f"[scenario3] {node_name} restarted ")
 
-# ΓöÇΓöÇ Sampling loop ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Sampling loop 
 
 def run_scenario():
     restart_at = KILL_AT_SECOND + DOWNTIME_SECONDS
-    print(f"\n[scenario3] Running for {TOTAL_RUN_SECONDS}s ΓÇö "
-          f"SIGKILL {NODE_TO_KILL} at t={KILL_AT_SECOND}s ΓÇö "
-          f"restart at t={restart_at}s ΓÇö sampling every {SAMPLE_EVERY}s...")
+    print(f"\n[scenario3] Running for {TOTAL_RUN_SECONDS}s  "
+          f"SIGKILL {NODE_TO_KILL} at t={KILL_AT_SECOND}s  "
+          f"restart at t={restart_at}s  sampling every {SAMPLE_EVERY}s...")
 
     samples = []
     start   = time.time()
@@ -195,7 +195,7 @@ def run_scenario():
 
         samples.append(row)
 
-        n2_status = "up" if row.get("node2_up") else "≡ƒÆÑ DOWN"
+        n2_status = "up" if row.get("node2_up") else " DOWN"
         print(f"  [t={tick:>3}s] node2={n2_status:<8} "
               f"node2_fsync={row.get('node2_fsync_count')}  "
               f"cluster_fsync_sum={row['cluster_fsync_sum']}  "
@@ -203,16 +203,16 @@ def run_scenario():
 
     return samples
 
-# ΓöÇΓöÇ Verdict ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Verdict 
 
 def evaluate(samples):
     kill_index    = next((i for i, r in enumerate(samples) if r["node2_killed"]), None)
     restart_index = next((i for i, r in enumerate(samples) if r["node2_restarted"]), None)
 
     if kill_index is None:
-        return {"error": "node2 was never killed during the run ΓÇö check timing"}
+        return {"error": "node2 was never killed during the run  check timing"}
     if restart_index is None:
-        return {"error": "node2 was never restarted during the run ΓÇö check timing"}
+        return {"error": "node2 was never restarted during the run  check timing"}
 
     during_downtime = samples[kill_index:restart_index]
     after_restart   = samples[restart_index:]
@@ -256,10 +256,10 @@ def evaluate(samples):
 
 def print_result(result):
     print(f"\n{'='*65}")
-    print(f"  FAILURE SCENARIO 3 ΓÇö HARD CRASH + RECOVERY (SIGKILL, node2)")
+    print(f"  FAILURE SCENARIO 3  HARD CRASH + RECOVERY (SIGKILL, node2)")
     print(f"{'='*65}")
     if "error" in result:
-        print(f"  Γ¥î {result['error']}")
+        print(f"   {result['error']}")
         print(f"{'='*65}\n")
         return
     print(f"  Cluster kept committing during node2 downtime : {result['cluster_progressed_during_downtime']}")
@@ -270,9 +270,9 @@ def print_result(result):
     print(f"  Node2 catch-up ratio (1.0 = full parity)       : {result['node2_catch_up_ratio']}")
     print(f"  {'-'*63}")
     if result["passed"]:
-        print(f"  Γ£à PASS ΓÇö node2 crashed, recovered, and caught up without blocking commits")
+        print(f"   PASS  node2 crashed, recovered, and caught up without blocking commits")
     else:
-        print(f"  Γ¥î FAIL ΓÇö see flags above for which condition failed")
+        print(f"   FAIL  see flags above for which condition failed")
     print(f"{'='*65}\n")
 
 def save_results(samples, result):
@@ -289,7 +289,7 @@ def save_results(samples, result):
     path = os.path.join(SCRIPT_DIR, "failure-scenario-3-results.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  ≡ƒôä Results saved to: {path}")
+    print(f"   Results saved to: {path}")
 
 def run_load_generator(stop_event, port=9091, rate_per_sec=10):
     interval = 1.0 / rate_per_sec
@@ -305,11 +305,11 @@ def run_load_generator(stop_event, port=9091, rate_per_sec=10):
             pass
         time.sleep(interval)    
 
-# ΓöÇΓöÇ Main ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+#  Main 
 
 def main():
     print(f"\n{'='*65}")
-    print(f"  WR-RAFT FAILURE SCENARIO 3 ΓÇö HARD CRASH + RECOVERY")
+    print(f"  WR-RAFT FAILURE SCENARIO 3  HARD CRASH + RECOVERY")
     print(f"  Node: {NODE_TO_KILL} | SIGKILL at t={KILL_AT_SECOND}s | "
           f"Down for {DOWNTIME_SECONDS}s | Total run: {TOTAL_RUN_SECONDS}s")
     print(f"{'='*65}")
@@ -323,7 +323,7 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("Γ¥î Cluster failed to start")
+        print(" Cluster failed to start")
         proc.terminate()
         sys.exit(1)
 
@@ -347,7 +347,7 @@ def main():
     save_results(samples, result)
 
     stop_cluster(proc)
-    print("[scenario3] Γ£à Failure scenario 3 complete!\n")
+    print("[scenario3]  Failure scenario 3 complete!\n")
 
 if __name__ == "__main__":
     main()

@@ -17,9 +17,9 @@ from config import (
 )
 from injector_bridge import apply_profile, reset_all, verify_profile
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # Metrics helpers
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 def fetch_metrics(port):
     try:
@@ -30,7 +30,7 @@ def fetch_metrics(port):
         return ""
 
 def parse_p99(metrics_text):
-    """Parse fsync_duration_ns histogram → p99 in ms."""
+    """Parse fsync_duration_ns histogram -> p99 in ms."""
     buckets = {}
     total_count = 0.0
 
@@ -61,7 +61,7 @@ def parse_p99(metrics_text):
     return None
 
 def parse_p50(metrics_text):
-    """Parse fsync_duration_ns histogram → p50 in ms."""
+    """Parse fsync_duration_ns histogram -> p50 in ms."""
     buckets = {}
     total_count = 0.0
 
@@ -91,9 +91,9 @@ def parse_p50(metrics_text):
             return round(le / 1_000_000, 3)
     return None
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # Cluster health check
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 def wait_for_cluster(timeout=30):
     """Wait until all 5 nodes are reachable on their metrics port."""
@@ -116,14 +116,14 @@ def wait_for_cluster(timeout=30):
     print(f"  Only {up}/{len(NODES)} nodes reachable after {timeout}s")
     return False
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # Test workload (simple write simulator)
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 def run_workload(duration_sec, ops_per_sec):
     """
     Simulates write workload by polling metrics endpoints.
-    In a real setup this would send gRPC writes — here we
+    In a real setup this would send gRPC writes - here we
     just keep sampling metrics so Prometheus data accumulates.
     """
     print(f"\n[Harness] Running workload for {duration_sec}s "
@@ -143,11 +143,11 @@ def run_workload(duration_sec, ops_per_sec):
             break
         time.sleep(min(interval, remaining))
 
-    print(f"[Harness] Workload complete — {ops_done} polling ops done")
+    print(f"[Harness] Workload complete - {ops_done} polling ops done")
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # Results collection
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 def collect_results(profile_name):
     """Read p50 + p99 from all nodes and return as a list of dicts."""
@@ -169,7 +169,7 @@ def collect_results(profile_name):
 
 def print_results_table(results):
     print(f"\n{'='*60}")
-    print(f"  HARNESS RESULT — Profile: {results[0]['profile'].upper()}")
+    print(f"  HARNESS RESULT - Profile: {results[0]['profile'].upper()}")
     print(f"{'='*60}")
     print(f"  {'Node':<8} {'p50 (ms)':>12} {'p99 (ms)':>12}")
     print(f"  {'-'*8} {'-'*12} {'-'*12}")
@@ -186,9 +186,9 @@ def save_results(results, profile_name):
         json.dump(results, f, indent=2)
     print(f"[Harness]  Results saved to: {out_path}")
 
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 # Main
-# ─────────────────────────────────────────────
+# ---------------------------------------------
 
 def main():
     print(f"\n{'='*60}")
@@ -198,36 +198,36 @@ def main():
     print(f"  Write rate    : {WRITE_RATE_OPS} ops/sec")
     print(f"{'='*60}")
 
-    # Step 1 — Check cluster is up
+    # Step 1 - Check cluster is up
     if not wait_for_cluster():
         print("[Harness]  Cluster not reachable. Start it first with: docker compose up")
         sys.exit(1)
 
-    # Step 2 — Apply latency profile (setup)
+    # Step 2 - Apply latency profile (setup)
     ok = apply_profile(LATENCY_PROFILE)
     if not ok:
         print("[Harness]  Could not apply profile. Aborting.")
         sys.exit(1)
 
-    # Step 3 — Show what's active
+    # Step 3 - Show what's active
     verify_profile(LATENCY_PROFILE)
 
-    # Step 4 — Wait a moment for netem rules to settle
-    print(f"\n[Harness] ⏳ Waiting 5s for netem rules to take effect...")
+    # Step 4 - Wait a moment for netem rules to settle
+    print(f"\n[Harness]  Waiting 5s for netem rules to take effect...")
     time.sleep(5)
 
-    # Step 5 — Run workload
+    # Step 5 - Run workload
     try:
         run_workload(TEST_DURATION_SEC, WRITE_RATE_OPS)
     except KeyboardInterrupt:
-        print("\n[Harness] ️  Interrupted by user")
+        print("\n[Harness]   Interrupted by user")
 
-    # Step 6 — Collect results
+    # Step 6 - Collect results
     results = collect_results(LATENCY_PROFILE)
     print_results_table(results)
     save_results(results, LATENCY_PROFILE)
 
-    # Step 7 — Reset (teardown) — always runs even if test failed
+    # Step 7 - Reset (teardown) - always runs even if test failed
     reset_all()
 
     print("[Harness]  Test complete.\n")

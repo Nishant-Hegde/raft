@@ -1,6 +1,6 @@
 import os
 
-# The profile to use — read from env var, default to "moderate"
+# The profile to use - read from env var, default to "moderate"
 LATENCY_PROFILE = os.environ.get("LATENCY_PROFILE", "moderate").lower()
 
 # How long to run the test workload (seconds)
