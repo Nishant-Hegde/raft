@@ -909,7 +909,17 @@ func (r *raft) appendEntry(es ...*pb.Entry) (accepted bool) {
 	//  if r.maybeCommit() {
 	//  	r.bcastAppend()
 	//  }
-	r.send(&pb.Message{To: new(r.id), Type: pb.MsgAppResp.Enum(), Index: new(li)})
+	resp := &pb.Message{To: new(r.id), Type: pb.MsgAppResp.Enum(), Index: new(li)}
+	// Attach the leader's own storage-write latency so UpdateEWAWeight
+	// receives a real sample for the leader, not 0 (which is a no-op).
+	// Without this, the leader's weight stays at its initial 1.0 while
+	// followers' raw weights drop toward 1/latencyMs, and normalization
+	// inflates the leader's share.
+	if lr, ok := r.raftLog.storage.(LatencyReporter); ok {
+		latency := lr.LastWriteLatencyNs()
+		resp.StorageWriteLatencyNs = &latency
+	}
+	r.send(resp)
 	return true
 }
 
