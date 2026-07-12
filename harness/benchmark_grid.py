@@ -27,7 +27,7 @@ NODE_ID_TO_NAME = {
 # Read axis dropped (agreed with B): WR-Raft affects the commit path
 # only - reads are served from local applied state without quorum
 # involvement, so read/write mix is not a meaningful axis here.
-# Grid is now 3 heterogeneity profiles x 2 modes = 6 cells.
+# Grid is 3 heterogeneity profiles x 2 modes = 6 cells.
 
 HETEROGENEITY_PROFILES = {
     "uniform":  {"NODE1_DELAY": "1", "NODE2_DELAY": "1", "NODE3_DELAY": "1", "NODE4_DELAY": "1",  "NODE5_DELAY": "1"},
@@ -127,8 +127,11 @@ def check_weight_uniformity(leader_port, expect_uniform):
                 pass
 
     if not weights:
+        # Vanilla mode: gauge is legitimately never populated (confirmed
+        # with B - EpochHistoryLogger callback never fires when
+        # UpdateEWAWeight is never called). Absence is expected there.
         if expect_uniform:
-            return True, weights   # vanilla: gauge legitimately never populated
+            return True, weights
         else:
             print("[grid]   No wr_raft_weight metric found - cannot verify WR-Raft mode")
             return False, weights
@@ -138,6 +141,23 @@ def check_weight_uniformity(leader_port, expect_uniform):
     is_uniform = spread < 0.05
     passed = is_uniform if expect_uniform else not is_uniform
     return passed, weights
+
+def wait_for_weight_condition(leader_port, expect_uniform, max_wait=20, poll_every=3):
+    """
+    Poll check_weight_uniformity repeatedly instead of checking once.
+    Weights need a few AppendEntries cycles to diverge - a single check
+    right after warmup can catch them still sitting at their initial
+    1.0 default, producing a false FAIL even when the system is working.
+    """
+    deadline = time.time() + max_wait
+    last_weights = {}
+    while time.time() < deadline:
+        passed, weights = check_weight_uniformity(leader_port, expect_uniform)
+        last_weights = weights
+        if passed:
+            return True, weights
+        time.sleep(poll_every)
+    return False, last_weights
 
 # -- Cluster helpers --------------------------------------------
 
@@ -165,13 +185,13 @@ def wait_for_cluster(timeout=60):
 def start_cluster(env_vars):
     print(f"[grid] Starting cluster with: {env_vars}")
     env = os.environ.copy()
-    env.pop("WR_WEIGHTING", None)
+    env.pop("WR_WEIGHTING", None)   # clear any leaked shell-level value first
     env.update(env_vars)
     subprocess.run(
         ["docker", "compose", "down", "--remove-orphans"],
         cwd=PROJECT_DIR, capture_output=True
     )
-    time.sleep(3)
+    time.sleep(5)   # give Docker a bit more time to fully release ports/containers
     proc = subprocess.Popen(
         ["docker", "compose", "up", "--build"],
         cwd=PROJECT_DIR, env=env,
@@ -194,6 +214,7 @@ def run_cell(mode, profile_name):
     env_vars = dict(HETEROGENEITY_PROFILES[profile_name])
     if mode == "vanilla":
         env_vars["WR_WEIGHTING"] = "off"
+    # weighted mode: leave WR_WEIGHTING unset entirely
 
     proc = start_cluster(env_vars)
 
@@ -217,10 +238,19 @@ def run_cell(mode, profile_name):
         stop_cluster(proc)
         return None
 
-    expect_uniform = (mode == "vanilla")
-    weight_ok, weights = check_weight_uniformity(leader_port, expect_uniform)
+    # Uniform profile has no real heterogeneity - weights should stay
+    # near-equal even with weighting ON, since there's nothing for the
+    # EWA to differentiate. Only moderate/severe profiles should show
+    # divergence when weighted.
+    if profile_name == "uniform":
+        expect_uniform = True
+    else:
+        expect_uniform = (mode == "vanilla")
+
+    weight_ok, weights = wait_for_weight_condition(leader_port, expect_uniform)
     if not weight_ok:
         print("  ABORTING CELL - weight-uniformity assertion failed, do not trust this cell")
+        print(f"  Last observed weights: {weights}")
         stop_cluster(proc)
         return None
 
@@ -306,7 +336,9 @@ def main():
                 "the commit path only - reads are served from local applied "
                 "state without quorum involvement, so read mix is not a "
                 "meaningful axis for this evaluation. Grid is 3 heterogeneity "
-                "profiles x 2 modes (vanilla/weighted), writes-only."
+                "profiles x 2 modes (vanilla/weighted), writes-only. Uniform "
+                "profile expects uniform weights under BOTH modes since there "
+                "is no real heterogeneity for the EWA to react to."
             ),
         }, f, indent=2)
 
