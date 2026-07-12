@@ -295,6 +295,12 @@ type Config struct {
 	// behavior, equivalent to unweighted majority quorum).
 	Weight map[uint64]float64
 
+	// DisableWeighting, when true, prevents the leader from updating EWA
+	// weights on MsgAppResp. All voters retain uniform weight (1.0),
+	// making the weighted quorum degenerate to plain majority. This allows
+	// running the same binary as "vanilla Raft" for benchmarking.
+	DisableWeighting bool
+
 	// AlphaBase assigns the base alpha parameter for EWA weight adaptation.
 	// If unset (0.0), it defaults to tracker.EWAlpha.
 	AlphaBase float64
@@ -463,6 +469,7 @@ type raft struct {
 	randomizedElectionTimeout int
 	disableProposalForwarding bool
 	stepDownOnRemoval         bool
+	disableWeighting          bool
 
 	tick func()
 	step stepFunc
@@ -505,6 +512,7 @@ func newRaft(c *Config) *raft {
 		disableProposalForwarding:   c.DisableProposalForwarding,
 		disableConfChangeValidation: c.DisableConfChangeValidation,
 		stepDownOnRemoval:           c.StepDownOnRemoval,
+		disableWeighting:            c.DisableWeighting,
 		traceLogger:                 c.TraceLogger,
 	}
 	r.trk.HistoryLogger = c.EpochHistoryLogger
@@ -1582,8 +1590,9 @@ func stepLeader(r *raft, m *pb.Message) error {
 			}
 
 			// Wire successful follower acknowledgement to the EWA weight update logic.
-			fmt.Printf("[DEBUG] UpdateEWAWeight called: from=%v latencyNs=%v\n", m.GetFrom(), m.GetStorageWriteLatencyNs())
-			r.trk.UpdateEWAWeight(m.GetFrom(), m.GetStorageWriteLatencyNs())
+			if !r.disableWeighting {
+				r.trk.UpdateEWAWeight(m.GetFrom(), m.GetStorageWriteLatencyNs())
+			}
 
 			// We want to update our tracking if the response updates our
 			// matched index or if the response can move a probing peer back

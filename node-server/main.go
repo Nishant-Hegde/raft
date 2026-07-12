@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"time"
 	"net"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -59,16 +61,30 @@ func main() {
 		log.Fatalf("unknown node id: %s", *nodeID)
 	}
 
+	// WR_WEIGHTING env var controls weighted quorum.
+	// Set WR_WEIGHTING=off or WR_WEIGHTING=false to disable (vanilla Raft).
+	// Unset or any other value = enabled (WR-Raft).
+	disableWeighting := false
+	if env := strings.ToLower(strings.TrimSpace(os.Getenv("WR_WEIGHTING"))); env == "off" || env == "false" {
+		disableWeighting = true
+	}
+	if disableWeighting {
+		log.Printf("WR-Raft weighting: DISABLED (vanilla)")
+	} else {
+		log.Printf("WR-Raft weighting: ENABLED")
+	}
+
 	backend := raft.NewMemoryStorage()
-    storage := NewInstrumentedStorage(*nodeID, *walDir, *extraDelayMs, backend)
+	storage := NewInstrumentedStorage(*nodeID, *walDir, *extraDelayMs, backend)
 
 	c := &raft.Config{
-		ID:              myID,
-		ElectionTick:    10,
-		HeartbeatTick:   1,
-		Storage:         storage,
-		MaxSizePerMsg:   4096,
-		MaxInflightMsgs: 256,
+		ID:               myID,
+		ElectionTick:     10,
+		HeartbeatTick:    1,
+		Storage:          storage,
+		MaxSizePerMsg:    4096,
+		MaxInflightMsgs:  256,
+		DisableWeighting: disableWeighting,
 	}
 
 	c.EpochHistoryLogger = func(epoch uint64, ct float64, maxAppended uint64, weights map[uint64]float64) {
