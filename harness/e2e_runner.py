@@ -216,6 +216,7 @@ def wait_for_cluster(timeout=60):
 def start_cluster(env_vars):
     print(f"\n[e2e] Starting cluster with: {env_vars}")
     env = os.environ.copy()
+    env.pop("WR_WEIGHTING", None)  # clear any leaked shell-level value before applying this run's intent
     env.update(env_vars)
     subprocess.run(
         ["docker", "compose", "down", "--remove-orphans"],
