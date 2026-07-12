@@ -1,0 +1,91 @@
+{
+  "generated": "2026-07-12T21:18:00.652155+05:30",
+  "results": [
+    {
+      "mode": "vanilla",
+      "heterogeneity_profile": "uniform",
+      "p50_ms": 7.714,
+      "p99_ms": 28.402,
+      "p999_ms": 29.722,
+      "throughput_ops_sec": 77.7,
+      "ops_attempted": 4663,
+      "ops_succeeded": 4663,
+      "weights_at_check": {}
+    },
+    {
+      "mode": "vanilla",
+      "heterogeneity_profile": "moderate",
+      "p50_ms": 12.591,
+      "p99_ms": 27.388,
+      "p999_ms": 29.381,
+      "throughput_ops_sec": 81.3,
+      "ops_attempted": 4879,
+      "ops_succeeded": 4879,
+      "weights_at_check": {}
+    },
+    {
+      "mode": "vanilla",
+      "heterogeneity_profile": "severe",
+      "p50_ms": 13.721,
+      "p99_ms": 26.957,
+      "p999_ms": 29.014,
+      "throughput_ops_sec": 74.8,
+      "ops_attempted": 4490,
+      "ops_succeeded": 4490,
+      "weights_at_check": {}
+    },
+    {
+      "mode": "weighted",
+      "heterogeneity_profile": "uniform",
+      "p50_ms": 6.846,
+      "p99_ms": 29.638,
+      "p999_ms": 30.647,
+      "throughput_ops_sec": 83.0,
+      "ops_attempted": 4977,
+      "ops_succeeded": 4977,
+      "weights_at_check": {
+        "1": 1.0158211440812699,
+        "2": 0.9768989115578077,
+        "3": 1.0158211440812699,
+        "4": 1.0158211440812699,
+        "5": 0.9756376561983826
+      }
+    },
+    {
+      "mode": "weighted",
+      "heterogeneity_profile": "moderate",
+      "p50_ms": 6.439,
+      "p99_ms": 27.072,
+      "p999_ms": 29.589,
+      "throughput_ops_sec": 87.5,
+      "ops_attempted": 5249,
+      "ops_succeeded": 5249,
+      "weights_at_check": {
+        "1": 0.6984161916427958,
+        "2": 0.7530261096058853,
+        "3": 0.6841819519810347,
+        "4": 2.69197613779158,
+        "5": 0.1723996089787043
+      }
+    },
+    {
+      "mode": "weighted",
+      "heterogeneity_profile": "severe",
+      "p50_ms": 5.083,
+      "p99_ms": 27.978,
+      "p999_ms": 30.335,
+      "throughput_ops_sec": 106.2,
+      "ops_attempted": 6372,
+      "ops_succeeded": 6372,
+      "weights_at_check": {
+        "1": 3.5615981519167605,
+        "2": 0.6133693396697172,
+        "3": 0.633949284444224,
+        "4": 0.09488756542930935,
+        "5": 0.09619565853998839
+      }
+    }
+  ],
+  "skipped_cells": [],
+  "note": "Read/write mix axis intentionally dropped. WR-Raft affects the commit path only - reads are served from local applied state without quorum involvement, so read mix is not a meaningful axis for this evaluation. Grid is 3 heterogeneity profiles x 2 modes (vanilla/weighted), writes-only. Uniform profile expects uniform weights under BOTH modes since there is no real heterogeneity for the EWA to react to. A light background write load (20 ops/sec) runs during warmup and weight-convergence polling so the EWA has real AppendEntries latency to react to before the measured run begins."
+}

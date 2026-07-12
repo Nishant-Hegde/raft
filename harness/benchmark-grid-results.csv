@@ -1,0 +1,7 @@
+mode,heterogeneity_profile,p50_ms,p99_ms,p999_ms,throughput_ops_sec,ops_attempted,ops_succeeded
+vanilla,uniform,7.714,28.402,29.722,77.7,4663,4663
+vanilla,moderate,12.591,27.388,29.381,81.3,4879,4879
+vanilla,severe,13.721,26.957,29.014,74.8,4490,4490
+weighted,uniform,6.846,29.638,30.647,83.0,4977,4977
+weighted,moderate,6.439,27.072,29.589,87.5,5249,5249
+weighted,severe,5.083,27.978,30.335,106.2,6372,6372
