@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package transport;
+option go_package = "go.etcd.io/raft/v3/node-server/transport";
+
+import "raftpb/raft.proto";
+
+message Ack {}
+
+service RaftTransport {
+  rpc SendMessage(raftpb.Message) returns (Ack);
+}

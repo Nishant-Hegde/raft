@@ -11,16 +11,19 @@ import (
 )
 
 type InstrumentedStorage struct {
-	mu           sync.Mutex
-	ms           *raft.MemoryStorage
-	walDir       string
-	nodeID       string
-	extraDelayMs int
+
+	mu               sync.Mutex
+	ms               *raft.MemoryStorage
+	walDir           string
+	nodeID           string
+	extraDelayMs     int
+	lastWriteLatency int64
+
 }
 
-func NewInstrumentedStorage(nodeID, walDir string, extraDelayMs int) *InstrumentedStorage {
+func NewInstrumentedStorage(nodeID, walDir string, extraDelayMs int, backend *raft.MemoryStorage) *InstrumentedStorage {
 	return &InstrumentedStorage{
-		ms:           raft.NewMemoryStorage(),
+		ms:           backend,
 		walDir:       walDir,
 		nodeID:       nodeID,
 		extraDelayMs: extraDelayMs,
@@ -59,9 +62,16 @@ func (s *InstrumentedStorage) Append(entries []*raftpb.Entry) error {
 		return err
 	}
 	duration := time.Since(start).Nanoseconds()
+	s.lastWriteLatency = duration
 	fsyncDuration.Observe(float64(duration))
 
 	return s.ms.Append(entries)
+}
+
+func (s *InstrumentedStorage) SetHardState(st *raftpb.HardState) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ms.SetHardState(st)
 }
 
 func (s *InstrumentedStorage) InitialState() (*raftpb.HardState, *raftpb.ConfState, error) {
@@ -86,4 +96,13 @@ func (s *InstrumentedStorage) FirstIndex() (uint64, error) {
 
 func (s *InstrumentedStorage) Snapshot() (*raftpb.Snapshot, error) {
 	return s.ms.Snapshot()
+}
+// LastWriteLatencyNs implements raft.LatencyReporter.
+// Pointer receiver is required so the type assertion
+// r.raftLog.storage.(LatencyReporter) succeeds when Config.Storage
+// holds *InstrumentedStorage.
+func (s *InstrumentedStorage) LastWriteLatencyNs() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastWriteLatency
 }
