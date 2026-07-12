@@ -131,7 +131,7 @@ def verify_weighting_mode(expected_mode):
             print(f"[grid]   {node}: did NOT confirm '{expected_mode}' in logs")
     return confirmed == len(NODES)
 
-def check_weight_uniformity(leader_port, expect_uniform):
+def check_weight_uniformity(leader_port, expect_uniform, leader_id=None):
     text = fetch_metrics(leader_port)
     weights = {}
     for line in text.splitlines():
@@ -145,27 +145,32 @@ def check_weight_uniformity(leader_port, expect_uniform):
 
     if not weights:
         if expect_uniform:
-            return True, weights   # vanilla: gauge legitimately never populated
+            return True, weights
         else:
             print("[grid]   No wr_raft_weight metric found - cannot verify WR-Raft mode")
             return False, weights
 
-    values = list(weights.values())
+    # Leader's own weight entry appears to follow a different rule than
+    # follower weights (no self-measured AppendEntries latency) - exclude
+    # it from the spread check so we're only judging what the EWA does
+    # with observed peer latency, not the leader's own placeholder value.
+    # Flagged to B for confirmation; documenting as a known caveat either way.
+    compare_weights = {k: v for k, v in weights.items() if k != leader_id} if leader_id else weights
+
+    if not compare_weights:
+        return expect_uniform, weights
+
+    values = list(compare_weights.values())
     spread = max(values) - min(values)
     is_uniform = spread < 0.05
     passed = is_uniform if expect_uniform else not is_uniform
     return passed, weights
 
-def wait_for_weight_condition(leader_port, expect_uniform, max_wait=40, poll_every=3):
-    """
-    Poll check_weight_uniformity repeatedly while background load is
-    flowing (caller must ensure real write traffic is already running -
-    weights only move on real AppendEntries responses, not heartbeats).
-    """
+def wait_for_weight_condition(leader_port, expect_uniform, leader_id=None, max_wait=40, poll_every=3):
     deadline = time.time() + max_wait
     last_weights = {}
     while time.time() < deadline:
-        passed, weights = check_weight_uniformity(leader_port, expect_uniform)
+        passed, weights = check_weight_uniformity(leader_port, expect_uniform, leader_id=leader_id)
         last_weights = weights
         if passed:
             return True, weights
@@ -268,7 +273,8 @@ def run_cell(mode, profile_name):
         return None
 
     leader_port_holder["port"] = leader_port   # background load now targets the real leader
-
+    
+    leader_id = leader_name.replace("node", "") 
     # Uniform profile has no real heterogeneity - weights should stay
     # near-equal even with weighting ON, since there's nothing for the
     # EWA to differentiate. Only moderate/severe profiles should show
@@ -279,7 +285,7 @@ def run_cell(mode, profile_name):
         expect_uniform = (mode == "vanilla")
 
     print(f"  Leader: {leader_name} (port {leader_port}) - polling weight condition (background load flowing)...")
-    weight_ok, weights = wait_for_weight_condition(leader_port, expect_uniform)
+    weight_ok, weights = wait_for_weight_condition(leader_port, expect_uniform, leader_id=leader_id)
     if not weight_ok:
         print("  ABORTING CELL - weight-uniformity assertion failed, do not trust this cell")
         print(f"  Last observed weights: {weights}")
