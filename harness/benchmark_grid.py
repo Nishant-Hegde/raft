@@ -5,6 +5,7 @@ import csv
 import os
 import re
 import sys
+import threading
 import subprocess
 import urllib.request
 from datetime import datetime
@@ -35,9 +36,12 @@ HETEROGENEITY_PROFILES = {
     "severe":   {"NODE1_DELAY": "1", "NODE2_DELAY": "1", "NODE3_DELAY": "1", "NODE4_DELAY": "10", "NODE5_DELAY": "10"},
 }
 
-TARGET_OPS_PER_SEC = 1000
-RUN_SECONDS         = 60
-WARMUP_SECONDS      = 10
+TARGET_OPS_PER_SEC   = 1000
+RUN_SECONDS          = 60
+WARMUP_SECONDS       = 10
+BACKGROUND_OPS_PER_SEC = 20    # light load kept running during warmup + weight-poll,
+                                # so the EWA has real AppendEntries latency to react to
+                                # before the actual measured run even starts
 
 # -- Metrics helpers (supplementary per-node fsync stats) ----
 
@@ -70,6 +74,19 @@ def timed_propose(port, data=b"bench-op", timeout=5):
         return (time.perf_counter() - start) * 1000
     except Exception:
         return None
+
+# -- Background load generator --------------------------------
+# Keeps real writes flowing continuously so weights have something
+# to converge on BEFORE the measured run starts. Runs in a daemon
+# thread; stop_event signals it to stop.
+
+def background_load(port_getter, stop_event, ops_per_sec):
+    interval = 1.0 / ops_per_sec
+    while not stop_event.is_set():
+        port = port_getter()
+        if port is not None:
+            timed_propose(port)
+        stop_event.wait(interval)
 
 # -- Leader / mode discovery -----------------------------------
 
@@ -127,11 +144,8 @@ def check_weight_uniformity(leader_port, expect_uniform):
                 pass
 
     if not weights:
-        # Vanilla mode: gauge is legitimately never populated (confirmed
-        # with B - EpochHistoryLogger callback never fires when
-        # UpdateEWAWeight is never called). Absence is expected there.
         if expect_uniform:
-            return True, weights
+            return True, weights   # vanilla: gauge legitimately never populated
         else:
             print("[grid]   No wr_raft_weight metric found - cannot verify WR-Raft mode")
             return False, weights
@@ -142,12 +156,11 @@ def check_weight_uniformity(leader_port, expect_uniform):
     passed = is_uniform if expect_uniform else not is_uniform
     return passed, weights
 
-def wait_for_weight_condition(leader_port, expect_uniform, max_wait=20, poll_every=3):
+def wait_for_weight_condition(leader_port, expect_uniform, max_wait=40, poll_every=3):
     """
-    Poll check_weight_uniformity repeatedly instead of checking once.
-    Weights need a few AppendEntries cycles to diverge - a single check
-    right after warmup can catch them still sitting at their initial
-    1.0 default, producing a false FAIL even when the system is working.
+    Poll check_weight_uniformity repeatedly while background load is
+    flowing (caller must ensure real write traffic is already running -
+    weights only move on real AppendEntries responses, not heartbeats).
     """
     deadline = time.time() + max_wait
     last_weights = {}
@@ -191,7 +204,7 @@ def start_cluster(env_vars):
         ["docker", "compose", "down", "--remove-orphans"],
         cwd=PROJECT_DIR, capture_output=True
     )
-    time.sleep(5)   # give Docker a bit more time to fully release ports/containers
+    time.sleep(5)
     proc = subprocess.Popen(
         ["docker", "compose", "up", "--build"],
         cwd=PROJECT_DIR, env=env,
@@ -214,7 +227,6 @@ def run_cell(mode, profile_name):
     env_vars = dict(HETEROGENEITY_PROFILES[profile_name])
     if mode == "vanilla":
         env_vars["WR_WEIGHTING"] = "off"
-    # weighted mode: leave WR_WEIGHTING unset entirely
 
     proc = start_cluster(env_vars)
 
@@ -223,20 +235,39 @@ def run_cell(mode, profile_name):
         stop_cluster(proc)
         return None
 
-    print(f"  Warming up {WARMUP_SECONDS}s...")
+    expected_mode = "DISABLED" if mode == "vanilla" else "ENABLED"
+
+    # -- Start background load IMMEDIATELY, before warmup even finishes.
+    #    This is the fix: weights only move on real AppendEntries
+    #    responses, not heartbeats. Without real traffic flowing during
+    #    warmup/weight-check, the EWA has nothing to react to and stays
+    #    near its 1.0 default the whole time we're checking it.
+    leader_port_holder = {"port": None}
+    stop_bg = threading.Event()
+    bg_thread = threading.Thread(
+        target=background_load,
+        args=(lambda: leader_port_holder["port"], stop_bg, BACKGROUND_OPS_PER_SEC),
+        daemon=True
+    )
+    bg_thread.start()
+
+    print(f"  Warming up {WARMUP_SECONDS}s (background load already flowing)...")
     time.sleep(WARMUP_SECONDS)
 
-    expected_mode = "DISABLED" if mode == "vanilla" else "ENABLED"
     if not verify_weighting_mode(expected_mode):
         print(f"  ABORTING CELL - mode verification failed ({expected_mode} not confirmed on all nodes)")
+        stop_bg.set()
         stop_cluster(proc)
         return None
 
     leader_port, leader_name = find_leader_port()
     if leader_port is None:
         print("  ABORTING CELL - no leader found")
+        stop_bg.set()
         stop_cluster(proc)
         return None
+
+    leader_port_holder["port"] = leader_port   # background load now targets the real leader
 
     # Uniform profile has no real heterogeneity - weights should stay
     # near-equal even with weighting ON, since there's nothing for the
@@ -247,14 +278,23 @@ def run_cell(mode, profile_name):
     else:
         expect_uniform = (mode == "vanilla")
 
+    print(f"  Leader: {leader_name} (port {leader_port}) - polling weight condition (background load flowing)...")
     weight_ok, weights = wait_for_weight_condition(leader_port, expect_uniform)
     if not weight_ok:
         print("  ABORTING CELL - weight-uniformity assertion failed, do not trust this cell")
         print(f"  Last observed weights: {weights}")
+        stop_bg.set()
         stop_cluster(proc)
         return None
 
-    print(f"  Leader: {leader_name} (port {leader_port}) - running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec...")
+    print(f"  Weight condition confirmed: {weights}")
+
+    # Stop the light background thread - the real measured run below
+    # takes over as the actual load for this cell.
+    stop_bg.set()
+    bg_thread.join(timeout=2)
+
+    print(f"  Running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec (measured)...")
 
     interval  = 1.0 / TARGET_OPS_PER_SEC
     end_time  = time.time() + RUN_SECONDS
@@ -338,7 +378,10 @@ def main():
                 "meaningful axis for this evaluation. Grid is 3 heterogeneity "
                 "profiles x 2 modes (vanilla/weighted), writes-only. Uniform "
                 "profile expects uniform weights under BOTH modes since there "
-                "is no real heterogeneity for the EWA to react to."
+                "is no real heterogeneity for the EWA to react to. A light "
+                "background write load (20 ops/sec) runs during warmup and "
+                "weight-convergence polling so the EWA has real AppendEntries "
+                "latency to react to before the measured run begins."
             ),
         }, f, indent=2)
 
