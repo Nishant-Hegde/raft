@@ -1,69 +1,32 @@
 {
   "ops_per_sec": 1000,
-  "profile": "moderate",
   "vanilla": {
     "mode": "vanilla_raft",
     "ops_per_sec": 1000,
     "duration_sec": 60,
-    "timestamp": "2026-07-07T05:38:59.496032",
-    "ops_completed": 2961,
-    "per_node": {
-      "node1": {
-        "p50_ms": 0.128,
-        "p99_ms": 0.512,
-        "p999_ms": 2.048
-      },
-      "node2": {
-        "p50_ms": 0.128,
-        "p99_ms": 0.512,
-        "p999_ms": 1.024
-      },
-      "node3": {
-        "p50_ms": 0.128,
-        "p99_ms": 0.512,
-        "p999_ms": 16.384
-      },
-      "node4": {
-        "p50_ms": 0.128,
-        "p99_ms": 0.512,
-        "p999_ms": 2.048
-      },
-      "node5": {
-        "p50_ms": 0.128,
-        "p99_ms": 0.512,
-        "p999_ms": 0.512
-      }
-    },
-    "commit_p50_ms": 0.128,
-    "commit_p99_ms": 0.512,
-    "commit_p999_ms": 2.048
-  },
-  "wr_raft": {
-    "mode": "wr_raft",
-    "ops_per_sec": 1000,
-    "duration_sec": 60,
-    "timestamp": "2026-07-07T05:40:26.649548",
-    "ops_completed": 2825,
+    "timestamp": "2026-07-12T13:57:49.193437",
+    "ops_completed": 5287,
+    "ops_succeeded": 5287,
     "per_node": {
       "node1": {
         "p50_ms": 2.048,
-        "p99_ms": 2.048,
+        "p99_ms": 4.096,
         "p999_ms": 4.096
       },
       "node2": {
         "p50_ms": 2.048,
-        "p99_ms": 2.048,
+        "p99_ms": 4.096,
         "p999_ms": 4.096
       },
       "node3": {
         "p50_ms": 2.048,
-        "p99_ms": 2.048,
+        "p99_ms": 4.096,
         "p999_ms": 4.096
       },
       "node4": {
         "p50_ms": 8.192,
         "p99_ms": 8.192,
-        "p999_ms": 16.384
+        "p999_ms": 8.192
       },
       "node5": {
         "p50_ms": 8.192,
@@ -71,9 +34,58 @@
         "p999_ms": 8.192
       }
     },
-    "commit_p50_ms": 2.048,
-    "commit_p99_ms": 2.048,
-    "commit_p999_ms": 4.096
+    "commit_p50_ms": 5.307,
+    "commit_p99_ms": 26.697,
+    "commit_p999_ms": 28.977,
+    "leader_at_start": "node4",
+    "weights_at_check": {}
   },
-  "generated": "2026-07-07T05:40:33.166599"
+  "wr_raft": {
+    "mode": "wr_raft",
+    "ops_per_sec": 1000,
+    "duration_sec": 60,
+    "timestamp": "2026-07-12T13:59:17.128121",
+    "ops_completed": 6816,
+    "ops_succeeded": 6816,
+    "per_node": {
+      "node1": {
+        "p50_ms": 2.048,
+        "p99_ms": 4.096,
+        "p999_ms": 4.096
+      },
+      "node2": {
+        "p50_ms": 2.048,
+        "p99_ms": 4.096,
+        "p999_ms": 4.096
+      },
+      "node3": {
+        "p50_ms": 2.048,
+        "p99_ms": 4.096,
+        "p999_ms": 4.096
+      },
+      "node4": {
+        "p50_ms": 8.192,
+        "p99_ms": 8.192,
+        "p999_ms": 8.192
+      },
+      "node5": {
+        "p50_ms": 8.192,
+        "p99_ms": 8.192,
+        "p999_ms": 8.192
+      }
+    },
+    "commit_p50_ms": 3.982,
+    "commit_p99_ms": 27.082,
+    "commit_p999_ms": 29.723,
+    "leader_at_start": "node3",
+    "weights_at_check": {
+      "1": 0.9872121175415786,
+      "2": 0.9414420839073713,
+      "3": 1.0237819328503501,
+      "4": 1.0237819328503501,
+      "5": 1.0237819328503501
+    }
+  },
+  "generated": "2026-07-12T13:59:23.630542",
+  "note": "commit_p50/p99/p999_ms are real client-side timed POST /propose latencies. Both runs used the same node delay profile; only WR_WEIGHTING differs. Mode and weight-uniformity were verified before each benchmark ran (see weights_at_check per run)."
 }
