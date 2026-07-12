@@ -78,11 +78,11 @@ def wait_for_cluster(timeout=60):
             except Exception:
                 pass
         if up == len(NODES):
-            print(f" ✅ All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" ❌ Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
@@ -112,7 +112,7 @@ def stop_cluster():
         cwd=PROJECT_DIR, capture_output=True
     )
     time.sleep(5)
-    print("[e2e] Cluster stopped ✅")
+    print("[e2e] Cluster stopped ")
 
 # ── Benchmark run ─────────────────────────────────────────
 
@@ -237,7 +237,7 @@ def print_comparison_table(vanilla, wr, ops_per_sec):
     print(f"  {'p99':<12} {vp99:>18.3f} {wp99:>14.3f} {imp(vp99,wp99):>11.1f}%")
     print(f"  {'p999':<12} {vp999:>18.3f} {wp999:>14.3f} {imp(vp999,wp999):>11.1f}%")
     print(f"{'='*70}")
-    print(f"  ✅ Positive % = WR-Raft is faster than vanilla")
+    print(f"   Positive % = WR-Raft is faster than vanilla")
     print(f"  ℹ  p99 improvement is the key metric for the paper")
     print(f"{'='*70}\n")
 
@@ -254,7 +254,7 @@ def save_results(vanilla, wr, ops_per_sec):
     path = os.path.join(SCRIPT_DIR, f"e2e-result-{ops_per_sec}ops.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  📄 Saved to: {path}")
+    print(f"   Saved to: {path}")
 
 # ── Main ──────────────────────────────────────────────────
 
@@ -281,7 +281,7 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("❌ Cluster failed to start. Check docker compose up output.")
+        print(" Cluster failed to start. Check docker compose up output.")
         proc1.terminate()
         sys.exit(1)
 
@@ -307,7 +307,7 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("❌ Cluster failed to start for WR-Raft run.")
+        print(" Cluster failed to start for WR-Raft run.")
         proc2.terminate()
         sys.exit(1)
 
@@ -323,7 +323,7 @@ def main():
     print_comparison_table(vanilla_result, wr_result, ops_per_sec)
     save_results(vanilla_result, wr_result, ops_per_sec)
 
-    print("[e2e] ✅ End-to-end run complete!\n")
+    print("[e2e]  End-to-end run complete!\n")
 
 if __name__ == "__main__":
     main()

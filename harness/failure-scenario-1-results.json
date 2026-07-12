@@ -1,0 +1,254 @@
+{
+  "generated": "2026-07-10T09:59:14.311313",
+  "scenario": "failure_scenario_1_one_slow_node",
+  "run_seconds": 120,
+  "samples": [
+    {
+      "t": 5,
+      "node1_p99_ms": 2.048,
+      "node5_weight": 0.0954,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 8.192,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 2.048
+    },
+    {
+      "t": 10,
+      "node1_p99_ms": 2.048,
+      "node5_weight": 0.0939,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 8.192,
+      "node4_p99_ms": 8.192,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 2.048
+    },
+    {
+      "t": 15,
+      "node1_p99_ms": 2.048,
+      "node5_weight": 0.093,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 8.192,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 2.048
+    },
+    {
+      "t": 20,
+      "node1_p99_ms": 2.048,
+      "node5_weight": 0.0923,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 8.192,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 2.048
+    },
+    {
+      "t": 25,
+      "node1_p99_ms": 2.048,
+      "node5_weight": 0.0939,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 2.048
+    },
+    {
+      "t": 30,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0891,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 35,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0932,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 40,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0892,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 45,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0945,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 50,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0824,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 55,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0936,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 60,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.093,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 65,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0971,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 70,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0941,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 75,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.095,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 80,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0936,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 85,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0952,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 90,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.092,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 95,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0886,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 100,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0914,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 105,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0923,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 110,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0908,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 115,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0949,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    },
+    {
+      "t": 120,
+      "node1_p99_ms": 4.096,
+      "node5_weight": 0.0949,
+      "node2_p99_ms": 4.096,
+      "node3_p99_ms": 4.096,
+      "node4_p99_ms": 4.096,
+      "node5_p99_ms": 16.384,
+      "cluster_commit_p99_ms": 4.096
+    }
+  ],
+  "result": {
+    "avg_fast_node_p99_ms": 4.203,
+    "avg_node5_p99_ms": 16.384,
+    "avg_cluster_commit_p99_ms": 3.669,
+    "final_node5_weight": 0.0949,
+    "node5_on_critical_path": false
+  }
+}

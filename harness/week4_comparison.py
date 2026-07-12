@@ -18,7 +18,7 @@ WRITE_RATES = [500, 1000, 2000]
 def load_sweep_results():
     path = os.path.join(SCRIPT_DIR, "write-rate-sweep-results.json")
     if not os.path.exists(path):
-        print(f"❌ Missing: {path}")
+        print(f" Missing: {path}")
         print(f"   Run Task 2 first: python harness\\write_rate_sweep.py")
         sys.exit(1)
     with open(path) as f:
@@ -80,7 +80,7 @@ def print_comparison_table(rows):
         print(f"  {'-'*12} {'-'*6} {'-'*13} {'-'*13} {'-'*12}")
 
     print(f"{'='*78}")
-    print(f"  ✅ Positive % = WR-Raft faster than vanilla Raft")
+    print(f"   Positive % = WR-Raft faster than vanilla Raft")
     print(f"  ℹ  p99 is the key metric — tail latency improvement")
     print(f"{'='*78}\n")
 
@@ -97,7 +97,7 @@ def save_table(rows):
     }
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  📄 Table saved to: {path}")
+    print(f"   Table saved to: {path}")
 
 # ── Build bar chart ───────────────────────────────────────
 
@@ -187,7 +187,7 @@ def build_bar_chart(rows):
     out_path = os.path.join(SCRIPT_DIR, "week4-p99-comparison-chart.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  📊 Bar chart saved to: {out_path}")
+    print(f"   Bar chart saved to: {out_path}")
     return out_path
 
 # ── Build p50/p99/p999 line chart ─────────────────────────
@@ -236,7 +236,7 @@ def build_line_chart(rows):
     out_path = os.path.join(SCRIPT_DIR, "week4-latency-lines.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  📈 Line chart saved to: {out_path}")
+    print(f"   Line chart saved to: {out_path}")
     return out_path
 
 # ── Main ──────────────────────────────────────────────────
@@ -248,11 +248,11 @@ def main():
 
     # Load data
     sweep = load_sweep_results()
-    print(f"  ✅ Loaded write-rate-sweep-results.json")
+    print(f"   Loaded write-rate-sweep-results.json")
 
     e2e = load_e2e_result()
     if e2e:
-        print(f"  ✅ Loaded e2e-result-1000ops.json")
+        print(f"   Loaded e2e-result-1000ops.json")
 
     # Extract rows for all 3 rates
     rows = [extract_row(sweep, rate) for rate in WRITE_RATES]
@@ -269,7 +269,7 @@ def main():
     build_line_chart(rows)
 
     # Open folder so you can see the charts
-    print(f"\n  ✅ All done! Open harness/ folder to view charts:")
+    print(f"\n   All done! Open harness/ folder to view charts:")
     print(f"     explorer {SCRIPT_DIR}")
     print(f"\n  Files generated:")
     print(f"     week4-comparison-table.json")

@@ -90,11 +90,11 @@ def wait_for_cluster(timeout=60):
             except Exception:
                 pass
         if up == len(NODES):
-            print(f" ✅ All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" ❌ Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
@@ -125,7 +125,7 @@ def stop_cluster(proc):
     )
     time.sleep(5)
     proc.terminate()
-    print("[check] Cluster stopped ✅")
+    print("[check] Cluster stopped ")
 
 # ── Read-your-writes checker ──────────────────────────────
 
@@ -205,7 +205,7 @@ def run_checker(mode_name, n_ops):
                 "actual_seq":  actual_seq,
                 "latency_ms":  latency_ms,
             })
-            print(f"  ❌ VIOLATION op={op}: wrote seq={write_seq} "
+            print(f"   VIOLATION op={op}: wrote seq={write_seq} "
                   f"on {write_node}, read seq={actual_seq} on {read_node}")
 
         # Progress every 50 ops
@@ -232,10 +232,10 @@ def print_check_result(mode_name, passed, failed, violations, avg_latency):
     print(f"  {'─'*55}")
 
     if failed == 0:
-        print(f"  ✅ PASS — No linearizability violations found")
-        print(f"  ✅ Read-your-writes consistency verified")
+        print(f"   PASS — No linearizability violations found")
+        print(f"   Read-your-writes consistency verified")
     else:
-        print(f"  ❌ FAIL — {failed} violations detected!")
+        print(f"   FAIL — {failed} violations detected!")
         print(f"  First violation:")
         v = violations[0]
         print(f"    Op {v['op']}: wrote seq={v['write_seq']} "
@@ -268,10 +268,10 @@ def print_final_table(vanilla_res, wr_res):
     print(f"{'='*65}")
 
     if v_failed == 0 and w_failed == 0:
-        print(f"  ✅ BOTH PASS — WR-Raft is correct under moderate profile")
-        print(f"  ✅ No read-your-writes violations in either mode")
+        print(f"   BOTH PASS — WR-Raft is correct under moderate profile")
+        print(f"   No read-your-writes violations in either mode")
     else:
-        print(f"  ⚠️  Violations detected — review logs above")
+        print(f"  ️  Violations detected — review logs above")
     print(f"{'='*65}\n")
 
 # ── Save results ──────────────────────────────────────────
@@ -300,7 +300,7 @@ def save_results(vanilla_res, wr_res):
     path = os.path.join(SCRIPT_DIR, "linearizability-check-results.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"  📄 Results saved to: {path}")
+    print(f"   Results saved to: {path}")
 
 # ── Main ──────────────────────────────────────────────────
 
@@ -325,7 +325,7 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("❌ Cluster failed to start")
+        print(" Cluster failed to start")
         proc.terminate()
         sys.exit(1)
 
@@ -353,7 +353,7 @@ def main():
     })
 
     if not wait_for_cluster():
-        print("❌ Cluster failed to start")
+        print(" Cluster failed to start")
         proc.terminate()
         sys.exit(1)
 
@@ -368,7 +368,7 @@ def main():
     print_final_table(vanilla_res, wr_res)
     save_results(vanilla_res, wr_res)
 
-    print("[check] ✅ Linearizability check complete!\n")
+    print("[check]  Linearizability check complete!\n")
 
 if __name__ == "__main__":
     main()

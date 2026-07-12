@@ -18,9 +18,9 @@ def apply_profile(profile_name):
         capture_output=False  # Let output print to terminal
     )
     if result.returncode != 0:
-        print(f"[Harness] ❌ Failed to apply profile '{profile_name}'")
+        print(f"[Harness]  Failed to apply profile '{profile_name}'")
         return False
-    print(f"[Harness] ✅ Profile '{profile_name}' applied successfully")
+    print(f"[Harness]  Profile '{profile_name}' applied successfully")
     return True
 
 def reset_all():
@@ -33,9 +33,9 @@ def reset_all():
         capture_output=False
     )
     if result.returncode != 0:
-        print(f"[Harness] ⚠️  Reset may have failed")
+        print(f"[Harness] ️  Reset may have failed")
     else:
-        print(f"[Harness] ✅ All nodes reset to zero delay")
+        print(f"[Harness]  All nodes reset to zero delay")
 
 def verify_profile(profile_name):
     """

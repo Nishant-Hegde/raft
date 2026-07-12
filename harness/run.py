@@ -109,11 +109,11 @@ def wait_for_cluster(timeout=30):
             except Exception:
                 pass
         if up == len(NODES):
-            print(f" ✅ All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(2)
-    print(f" ❌ Only {up}/{len(NODES)} nodes reachable after {timeout}s")
+    print(f"  Only {up}/{len(NODES)} nodes reachable after {timeout}s")
     return False
 
 # ─────────────────────────────────────────────
@@ -184,7 +184,7 @@ def save_results(results, profile_name):
     out_path = os.path.join(out_dir, f"result-{profile_name}-{int(time.time())}.json")
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
-    print(f"[Harness] 📄 Results saved to: {out_path}")
+    print(f"[Harness]  Results saved to: {out_path}")
 
 # ─────────────────────────────────────────────
 # Main
@@ -200,13 +200,13 @@ def main():
 
     # Step 1 — Check cluster is up
     if not wait_for_cluster():
-        print("[Harness] ❌ Cluster not reachable. Start it first with: docker compose up")
+        print("[Harness]  Cluster not reachable. Start it first with: docker compose up")
         sys.exit(1)
 
     # Step 2 — Apply latency profile (setup)
     ok = apply_profile(LATENCY_PROFILE)
     if not ok:
-        print("[Harness] ❌ Could not apply profile. Aborting.")
+        print("[Harness]  Could not apply profile. Aborting.")
         sys.exit(1)
 
     # Step 3 — Show what's active
@@ -220,7 +220,7 @@ def main():
     try:
         run_workload(TEST_DURATION_SEC, WRITE_RATE_OPS)
     except KeyboardInterrupt:
-        print("\n[Harness] ⚠️  Interrupted by user")
+        print("\n[Harness] ️  Interrupted by user")
 
     # Step 6 — Collect results
     results = collect_results(LATENCY_PROFILE)
@@ -230,7 +230,7 @@ def main():
     # Step 7 — Reset (teardown) — always runs even if test failed
     reset_all()
 
-    print("[Harness] ✅ Test complete.\n")
+    print("[Harness]  Test complete.\n")
 
 if __name__ == "__main__":
     main()

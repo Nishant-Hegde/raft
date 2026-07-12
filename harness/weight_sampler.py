@@ -211,8 +211,8 @@ def print_summary(all_records):
         print(f"  {node:<8} {p99_str:>14} {weight_str:>16} {expected:>10}")
 
     print(f"{'='*65}")
-    print(f"  ✅ Fast nodes (node1/2/3) should show HIGHER weight")
-    print(f"  ✅ Slow nodes (node4/5)   should show LOWER  weight")
+    print(f"   Fast nodes (node1/2/3) should show HIGHER weight")
+    print(f"   Slow nodes (node4/5)   should show LOWER  weight")
     print(f"{'='*65}\n")
 
 # ── Save results ─────────────────────────────────────────
@@ -221,7 +221,7 @@ def save_results(all_records):
     out_path = os.path.join(SCRIPT_DIR, "weight-sampler-results.json")
     with open(out_path, "w") as f:
         json.dump(all_records, f, indent=2)
-    print(f"  📄 Results saved to: {out_path}")
+    print(f"   Results saved to: {out_path}")
     return out_path
 
 # ── Main ─────────────────────────────────────────────────

@@ -177,7 +177,7 @@ def build_scatter_chart(records, out_path, profile_name="moderate"):
     plt.tight_layout()
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  📊 Chart saved to: {out_path}")
+    print(f"   Chart saved to: {out_path}")
 
 # ── Second chart: weight over time per node ───────────────
 
@@ -229,7 +229,7 @@ def build_timeseries_chart(records, out_path):
     plt.tight_layout()
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  📈 Time-series chart saved to: {out_path}")
+    print(f"   Time-series chart saved to: {out_path}")
 
 # ── Print stats table ─────────────────────────────────────
 
@@ -270,11 +270,11 @@ def main():
     results_path = os.path.join(SCRIPT_DIR, "weight-sampler-results.json")
 
     if not os.path.exists(results_path):
-        print(f"❌ Could not find: {results_path}")
+        print(f" Could not find: {results_path}")
         print(f"   Run Task 2 first: python harness\\weight_sampler.py")
         sys.exit(1)
 
-    print(f"\n📂 Loading data from: {results_path}")
+    print(f"\n Loading data from: {results_path}")
     records = load_results(results_path)
     print(f"   {len(records)} epochs loaded, {len(records) * 5} total data points")
 
@@ -289,7 +289,7 @@ def main():
     ts_path = os.path.join(SCRIPT_DIR, "weight_timeseries.png")
     build_timeseries_chart(records, ts_path)
 
-    print(f"\n✅ Both charts saved in harness/ folder.")
+    print(f"\n Both charts saved in harness/ folder.")
     print(f"   Open them in VS Code or Windows Explorer to view.\n")
 
 if __name__ == "__main__":

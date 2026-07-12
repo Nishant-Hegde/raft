@@ -83,11 +83,11 @@ def wait_for_cluster(timeout=60):
             except Exception:
                 pass
         if up == len(NODES):
-            print(f" ✅ All {len(NODES)} nodes up")
+            print(f"  All {len(NODES)} nodes up")
             return True
         print(".", end="", flush=True)
         time.sleep(3)
-    print(f" ❌ Cluster not fully up after {timeout}s")
+    print(f"  Cluster not fully up after {timeout}s")
     return False
 
 def start_cluster(env_vars):
@@ -118,7 +118,7 @@ def stop_cluster(proc):
     )
     time.sleep(5)
     proc.terminate()
-    print("[sweep] Cluster stopped ✅")
+    print("[sweep] Cluster stopped ")
 
 # ── Single benchmark run ──────────────────────────────────
 
@@ -221,7 +221,7 @@ def print_sweep_table(all_results):
         print(f"  {'-'*8}  {'-'*6}  {'-'*13}  {'-'*13}  {'-'*12}")
 
     print(f"{'='*75}")
-    print(f"  ✅ Positive % = WR-Raft faster | Key metric = p99")
+    print(f"   Positive % = WR-Raft faster | Key metric = p99")
     print(f"  ℹ  Improvement should grow as write rate increases")
     print(f"{'='*75}\n")
 
@@ -236,7 +236,7 @@ def save_results(all_results):
     path = os.path.join(SCRIPT_DIR, "write-rate-sweep-results.json")
     with open(path, "w") as f:
         json.dump(all_results, f, indent=2)
-    print(f"\n  📄 All results saved to: {path}")
+    print(f"\n   All results saved to: {path}")
 
 # ── Main ──────────────────────────────────────────────────
 
@@ -265,7 +265,7 @@ def main():
         })
 
         if not wait_for_cluster():
-            print(f"❌ Cluster failed at {rate} ops/sec vanilla run")
+            print(f" Cluster failed at {rate} ops/sec vanilla run")
             proc.terminate()
             continue
 
@@ -291,7 +291,7 @@ def main():
         })
 
         if not wait_for_cluster():
-            print(f"❌ Cluster failed at {rate} ops/sec WR-Raft run")
+            print(f" Cluster failed at {rate} ops/sec WR-Raft run")
             proc.terminate()
             continue
 
@@ -303,7 +303,7 @@ def main():
         stop_cluster(proc)
 
         # Print partial table after each rate so you can see progress
-        print(f"\n[sweep] ✅ Rate {rate} ops/sec done!")
+        print(f"\n[sweep]  Rate {rate} ops/sec done!")
         print(f"  Vanilla p99: {vanilla_result['commit_p99_ms']} ms  |  "
               f"WR-Raft p99: {wr_result['commit_p99_ms']} ms")
 
@@ -314,7 +314,7 @@ def main():
     # Print final combined table
     print_sweep_table(all_results)
     save_results(all_results)
-    print("[sweep] ✅ Write rate sweep complete!\n")
+    print("[sweep]  Write rate sweep complete!\n")
 
 if __name__ == "__main__":
     main()
