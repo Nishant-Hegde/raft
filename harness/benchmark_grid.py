@@ -72,10 +72,15 @@ def timed_propose(port, data=b"bench-op", timeout=5):
             method="POST"
         )
         urllib.request.urlopen(req, timeout=timeout)
-        return (time.perf_counter() - start) * 1000
+        elapsed = (time.perf_counter() - start) * 1000
+        return elapsed, "success"
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, TimeoutError) or "timed out" in str(e.reason).lower():
+            return None, "timeout"
+        return None, "error"
     except Exception:
-        return None
-
+        return None, "error"
+    
 # -- Background load generator --------------------------------
 # Keeps real writes flowing continuously so weights have something
 # to converge on BEFORE the measured run starts. Runs in a daemon
@@ -301,33 +306,45 @@ def run_cell(mode, profile_name):
     stop_bg.set()
     bg_thread.join(timeout=2)
 
-
     print(f"  Running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec (measured, concurrent)...")
 
     latencies = []
-    ops_done = 0
+    outcome_counts = {"success": 0, "timeout": 0, "error": 0}
     lock = threading.Lock()
     end_time = time.time() + RUN_SECONDS
 
     def worker():
-        nonlocal ops_done
         while time.time() < end_time:
-            elapsed_ms = timed_propose(leader_port)
+            elapsed_ms, outcome = timed_propose(leader_port)
             with lock:
-                ops_done += 1
+                outcome_counts[outcome] += 1
                 if elapsed_ms is not None:
                     latencies.append(elapsed_ms)
 
-    # Enough concurrent workers to actually hit target throughput even
-    # with ~10-15ms round trips. E.g. at 1000 target ops/sec and ~10ms
-    # latency, you need roughly target_ops_per_sec * avg_latency_sec
-    # concurrent in-flight requests to sustain that rate.
     num_workers = 50
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = [executor.submit(worker) for _ in range(num_workers)]
         concurrent.futures.wait(futures)
 
-    throughput = round(len(latencies) / RUN_SECONDS, 1) if latencies else None    
+    total_attempts = sum(outcome_counts.values())
+    throughput = round(len(latencies) / RUN_SECONDS, 1) if latencies else None
+
+    print(f"  Outcomes: success={outcome_counts['success']} "
+          f"timeout={outcome_counts['timeout']} error={outcome_counts['error']} "
+          f"(total attempted={total_attempts})")
+
+    # Dump raw per-request latencies for this cell so we can inspect the
+    # distribution shape (e.g. bimodal), not just aggregate percentiles.
+    raw_path = os.path.join(SCRIPT_DIR, f"raw-latencies-{mode}-{profile_name}.json")
+    with open(raw_path, "w") as f:
+        json.dump({
+            "mode": mode,
+            "profile": profile_name,
+            "raw_latencies_ms": latencies,
+            "outcome_counts": outcome_counts,
+        }, f)
+    print(f"  Raw latencies saved to: {raw_path}")
+    
 
     row = {
         "mode": mode,
@@ -336,8 +353,10 @@ def run_cell(mode, profile_name):
         "p99_ms":  calc_percentile(latencies, 99),
         "p999_ms": calc_percentile(latencies, 99.9),
         "throughput_ops_sec": throughput,
-        "ops_attempted": ops_done,
-        "ops_succeeded": len(latencies),
+        "ops_attempted": total_attempts,
+        "ops_succeeded": outcome_counts["success"],
+        "ops_timeout": outcome_counts["timeout"],
+        "ops_error": outcome_counts["error"],
         "weights_at_check": weights,
     }
 
@@ -361,7 +380,7 @@ def main():
     total_cells = 2 * len(HETEROGENEITY_PROFILES)
 
     for mode in ["vanilla", "weighted"]:
-        for profile_name in HETEROGENEITY_PROFILES:
+        for profile_name in ["severe"]:
             cell_num += 1
             print(f"\n>>> Cell {cell_num}/{total_cells} <<<")
             row = run_cell(mode, profile_name)
