@@ -364,6 +364,35 @@ def run_cell(mode, profile_name):
     print(f"  Cell done: p50={row['p50_ms']}ms p99={row['p99_ms']}ms throughput={throughput}ops/s")
     return row
 
+
+def run_rate_limited(leader_port, target_ops_per_sec, duration_sec):
+    """
+    Send requests at a controlled rate (not max-concurrency), to test
+    whether the cluster is saturated at higher rates. Uses a simple
+    token-bucket style loop: one request per interval, but still async
+    enough to not double-count queueing as commit latency.
+    """
+    interval = 1.0 / target_ops_per_sec
+    latencies = []
+    outcome_counts = {"success": 0, "timeout": 0, "error": 0}
+    lock = threading.Lock()
+    end_time = time.time() + duration_sec
+
+    def fire_one():
+        elapsed_ms, outcome = timed_propose(leader_port)
+        with lock:
+            outcome_counts[outcome] += 1
+            if elapsed_ms is not None:
+                latencies.append(elapsed_ms)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        while time.time() < end_time:
+            executor.submit(fire_one)
+            time.sleep(interval)
+        executor.shutdown(wait=True)
+
+    return latencies, outcome_counts
+
 # -- Main grid loop --------------------------------------------
 
 def main():
@@ -380,7 +409,7 @@ def main():
     total_cells = 2 * len(HETEROGENEITY_PROFILES)
 
     for mode in ["vanilla", "weighted"]:
-        for profile_name in ["severe"]:
+        for profile_name in HETEROGENEITY_PROFILES:
             cell_num += 1
             print(f"\n>>> Cell {cell_num}/{total_cells} <<<")
             row = run_cell(mode, profile_name)
