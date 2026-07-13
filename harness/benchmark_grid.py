@@ -8,6 +8,7 @@ import sys
 import threading
 import subprocess
 import urllib.request
+import concurrent.futures
 from datetime import datetime
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -300,24 +301,33 @@ def run_cell(mode, profile_name):
     stop_bg.set()
     bg_thread.join(timeout=2)
 
-    print(f"  Running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec (measured)...")
 
-    interval  = 1.0 / TARGET_OPS_PER_SEC
-    end_time  = time.time() + RUN_SECONDS
-    ops_done  = 0
+    print(f"  Running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec (measured, concurrent)...")
+
     latencies = []
+    ops_done = 0
+    lock = threading.Lock()
+    end_time = time.time() + RUN_SECONDS
 
-    while time.time() < end_time:
-        elapsed_ms = timed_propose(leader_port)
-        if elapsed_ms is not None:
-            latencies.append(elapsed_ms)
-        ops_done += 1
-        remaining = end_time - time.time()
-        if remaining <= 0:
-            break
-        time.sleep(max(0, min(interval, remaining)))
+    def worker():
+        nonlocal ops_done
+        while time.time() < end_time:
+            elapsed_ms = timed_propose(leader_port)
+            with lock:
+                ops_done += 1
+                if elapsed_ms is not None:
+                    latencies.append(elapsed_ms)
 
-    throughput = round(len(latencies) / RUN_SECONDS, 1) if latencies else None
+    # Enough concurrent workers to actually hit target throughput even
+    # with ~10-15ms round trips. E.g. at 1000 target ops/sec and ~10ms
+    # latency, you need roughly target_ops_per_sec * avg_latency_sec
+    # concurrent in-flight requests to sustain that rate.
+    num_workers = 50
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        futures = [executor.submit(worker) for _ in range(num_workers)]
+        concurrent.futures.wait(futures)
+
+    throughput = round(len(latencies) / RUN_SECONDS, 1) if latencies else None    
 
     row = {
         "mode": mode,
