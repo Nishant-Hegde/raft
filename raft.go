@@ -1600,7 +1600,18 @@ func stepLeader(r *raft, m *pb.Message) error {
 			}
 
 			// Wire successful follower acknowledgement to the EWA weight update logic.
-			if !r.disableWeighting {
+			//
+			// We only call UpdateEWAWeight when the ack actually advances the
+			// matched index (m.GetIndex() > pr.Match). The redundant commit-ack
+			// (from the leader's bcastAppend) carries the SAME StorageWriteLatencyNs
+			// as the first ack because no new storage write occurred between them.
+			// Counting it twice double-counts a single measurement. Therefore, dropping
+			// non-progressing acks isn't just rate-limiting, it's removing duplicate samples.
+			//
+			// Note that a catching-up follower acks a large batch as one update,
+			// while a caught-up follower acks per-entry, so this parity is approximate,
+			// not exact - EWA smooths this.
+			if !r.disableWeighting && m.GetIndex() > pr.Match {
 				r.trk.UpdateEWAWeight(m.GetFrom(), m.GetStorageWriteLatencyNs())
 			}
 

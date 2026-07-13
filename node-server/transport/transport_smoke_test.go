@@ -14,18 +14,17 @@ import (
 
 func TestTransportSmoke(t *testing.T) {
 	// Start two raft nodes in-process, wired over our real gRPC transport.
-	// Node 1
-	addr1 := "localhost:50051"
-	addr2 := "localhost:50052"
+	lis1, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	addr1 := lis1.Addr().String()
 
-	lis1, err := net.Listen("tcp", addr1)
+	lis2, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("failed to listen on %s: %v", addr1, err)
+		t.Fatalf("failed to listen: %v", err)
 	}
-	lis2, err := net.Listen("tcp", addr2)
-	if err != nil {
-		t.Fatalf("failed to listen on %s: %v", addr2, err)
-	}
+	addr2 := lis2.Addr().String()
 
 	storage1 := raft.NewMemoryStorage()
 	storage2 := raft.NewMemoryStorage()
