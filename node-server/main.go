@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ var (
 	metricsPort  = flag.String("metrics-port", "9090", "Prometheus metrics port")
 	walDir       = flag.String("wal-dir", "/wal", "WAL directory (tmpfs)")
 	extraDelayMs = flag.Int("extra-delay-ms", 0, "Extra artificial delay in ms added to each fsync (set by injector)")
+	peersFlag    = flag.String("peers", "", "Comma-separated list of peers (e.g. 1=10.0.0.1:50051,2=10.0.0.2:50051)")
 
 	fsyncDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "fsync_duration_ns",
@@ -98,12 +100,27 @@ func main() {
 	}
 
 	n := raft.StartNode(c, peers)
-	peerAddrs := map[uint64]string{
-		1: "node1:50051",
-		2: "node2:50052",
-		3: "node3:50053",
-		4: "node4:50054",
-		5: "node5:50055",
+	peerAddrs := map[uint64]string{}
+	if *peersFlag != "" {
+		for _, p := range strings.Split(*peersFlag, ",") {
+			parts := strings.SplitN(p, "=", 2)
+			if len(parts) != 2 {
+				log.Fatalf("invalid peer format: %s", p)
+			}
+			id, err := strconv.ParseUint(parts[0], 10, 64)
+			if err != nil {
+				log.Fatalf("invalid peer id: %s", parts[0])
+			}
+			peerAddrs[id] = parts[1]
+		}
+	} else {
+		peerAddrs = map[uint64]string{
+			1: "node1:50051",
+			2: "node2:50052",
+			3: "node3:50053",
+			4: "node4:50054",
+			5: "node5:50055",
+		}
 	}
 
 	pm := transport.NewPeerManager(peerAddrs, myID)
