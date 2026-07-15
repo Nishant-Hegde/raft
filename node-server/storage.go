@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -11,14 +12,12 @@ import (
 )
 
 type InstrumentedStorage struct {
-
 	mu               sync.Mutex
 	ms               *raft.MemoryStorage
 	walDir           string
 	nodeID           string
 	extraDelayMs     int
 	lastWriteLatency int64
-
 }
 
 func NewInstrumentedStorage(nodeID, walDir string, extraDelayMs int, backend *raft.MemoryStorage) *InstrumentedStorage {
@@ -64,6 +63,7 @@ func (s *InstrumentedStorage) Append(entries []*raftpb.Entry) error {
 	duration := time.Since(start).Nanoseconds()
 	s.lastWriteLatency = duration
 	fsyncDuration.Observe(float64(duration))
+	log.Printf("[STAGE 1] FollowerID: %s, LastWriteLatencyNs: %d, LastWriteLatencyMs: %f\n", s.nodeID, duration, float64(duration)/1_000_000.0)
 
 	return s.ms.Append(entries)
 }
@@ -97,6 +97,7 @@ func (s *InstrumentedStorage) FirstIndex() (uint64, error) {
 func (s *InstrumentedStorage) Snapshot() (*raftpb.Snapshot, error) {
 	return s.ms.Snapshot()
 }
+
 // LastWriteLatencyNs implements raft.LatencyReporter.
 // Pointer receiver is required so the type assertion
 // r.raftLog.storage.(LatencyReporter) succeeds when Config.Storage

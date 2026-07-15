@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -76,6 +77,10 @@ func main() {
 		log.Printf("WR-Raft weighting: ENABLED")
 	}
 
+	if err := os.MkdirAll(*walDir, 0755); err != nil {
+		log.Fatalf("failed to create WAL directory %s: %v", *walDir, err)
+	}
+
 	backend := raft.NewMemoryStorage()
 	storage := NewInstrumentedStorage(*nodeID, *walDir, *extraDelayMs, backend)
 
@@ -95,11 +100,6 @@ func main() {
 		}
 	}
 
-	peers := []raft.Peer{
-		{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5},
-	}
-
-	n := raft.StartNode(c, peers)
 	peerAddrs := map[uint64]string{}
 	if *peersFlag != "" {
 		for _, p := range strings.Split(*peersFlag, ",") {
@@ -122,6 +122,24 @@ func main() {
 			5: "node5:50055",
 		}
 	}
+
+	var peers []raft.Peer
+	if *peersFlag != "" {
+		var ids []uint64
+		for id := range peerAddrs {
+			ids = append(ids, id)
+		}
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		for _, id := range ids {
+			peers = append(peers, raft.Peer{ID: id})
+		}
+	} else {
+		peers = []raft.Peer{
+			{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5},
+		}
+	}
+
+	n := raft.StartNode(c, peers)
 
 	pm := transport.NewPeerManager(peerAddrs, myID)
 	defer pm.Stop()
