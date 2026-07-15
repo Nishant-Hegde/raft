@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"hash/fnv"
 	"log"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -17,15 +19,25 @@ type InstrumentedStorage struct {
 	walDir           string
 	nodeID           string
 	extraDelayMs     int
+	jitterPct        int
+	rng              *rand.Rand
 	lastWriteLatency int64
 }
 
-func NewInstrumentedStorage(nodeID, walDir string, extraDelayMs int, backend *raft.MemoryStorage) *InstrumentedStorage {
+func hashSeed(seed string) int64 {
+	h := fnv.New64a()
+	h.Write([]byte(seed))
+	return int64(h.Sum64())
+}
+
+func NewInstrumentedStorage(nodeID, walDir string, extraDelayMs int, jitterPct int, seed string, backend *raft.MemoryStorage) *InstrumentedStorage {
 	return &InstrumentedStorage{
 		ms:           backend,
 		walDir:       walDir,
 		nodeID:       nodeID,
 		extraDelayMs: extraDelayMs,
+		jitterPct:    jitterPct,
+		rng:          rand.New(rand.NewSource(hashSeed(seed))),
 	}
 }
 
@@ -45,7 +57,15 @@ func (s *InstrumentedStorage) realFsync(data []byte) error {
 	}
 	// Apply artificial delay if set (simulates slow disk via tc netem equivalent)
 	if s.extraDelayMs > 0 {
-		time.Sleep(time.Duration(s.extraDelayMs) * time.Millisecond)
+		if s.jitterPct > 0 {
+			pct := float64(s.jitterPct) / 100.0
+			u := (s.rng.Float64() * 2.0) - 1.0 // [-1.0, 1.0)
+			factor := 1.0 + (u * pct)
+			sleepDur := time.Duration(float64(s.extraDelayMs) * factor * float64(time.Millisecond))
+			time.Sleep(sleepDur)
+		} else {
+			time.Sleep(time.Duration(s.extraDelayMs) * time.Millisecond)
+		}
 	}
 	return nil
 }

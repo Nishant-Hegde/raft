@@ -30,8 +30,10 @@ var (
 	grpcPort     = flag.String("grpc-port", "50051", "gRPC port")
 	metricsPort  = flag.String("metrics-port", "9090", "Prometheus metrics port")
 	walDir       = flag.String("wal-dir", "/wal", "WAL directory (tmpfs)")
-	extraDelayMs = flag.Int("extra-delay-ms", 0, "Extra artificial delay in ms added to each fsync (set by injector)")
-	peersFlag    = flag.String("peers", "", "Comma-separated list of peers (e.g. 1=10.0.0.1:50051,2=10.0.0.2:50051)")
+	extraDelayMs   = flag.Int("extra-delay-ms", 0, "Extra artificial delay in ms added to each fsync (set by injector)")
+	delayJitterPct = flag.Int("delay-jitter-pct", 0, "Jitter percentage for extra delay (0-100)")
+	delaySeed      = flag.String("delay-seed", "", "Seed for delay jitter RNG (defaults to node ID)")
+	peersFlag      = flag.String("peers", "", "Comma-separated list of peers (e.g. 1=10.0.0.1:50051,2=10.0.0.2:50051)")
 
 	fsyncDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name:    "fsync_duration_ns",
@@ -82,7 +84,12 @@ func main() {
 	}
 
 	backend := raft.NewMemoryStorage()
-	storage := NewInstrumentedStorage(*nodeID, *walDir, *extraDelayMs, backend)
+	
+	seed := *delaySeed
+	if seed == "" {
+		seed = *nodeID
+	}
+	storage := NewInstrumentedStorage(*nodeID, *walDir, *extraDelayMs, *delayJitterPct, seed, backend)
 
 	c := &raft.Config{
 		ID:               myID,
