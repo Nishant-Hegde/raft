@@ -29,7 +29,7 @@ NODE_ID_TO_NAME = {
 
 def fetch_metrics(port):
     try:
-        url = f"http://localhost:{port}/metrics"
+        url = f"http://{NODE_HOSTS[node]}:{port}/metrics"
         with urllib.request.urlopen(url, timeout=5) as resp:
             return resp.read().decode("utf-8")
     except Exception:
