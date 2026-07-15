@@ -137,7 +137,7 @@ def verify_weighting_mode(expected_mode):
             print(f"[grid]   {node}: did NOT confirm '{expected_mode}' in logs")
     return confirmed == len(NODES)
 
-def check_weight_uniformity(leader_port, expect_uniform, leader_id=None):
+def get_weights(leader_port):
     text = fetch_metrics(leader_port)
     weights = {}
     for line in text.splitlines():
@@ -148,38 +148,45 @@ def check_weight_uniformity(leader_port, expect_uniform, leader_id=None):
                 weights[peer_id] = value
             except Exception:
                 pass
+    return weights
 
-    if not weights:
-        if expect_uniform:
-            return True, weights
-        else:
-            print("[grid]   No wr_raft_weight metric found - cannot verify WR-Raft mode")
-            return False, weights
+def wait_for_convergence(leader_port, expect_divergence, load_fn, max_wait=90, poll_every=5, threshold=0.5):
+    """
+    Drive real load (via load_fn, a callable with no args that fires one
+    request) continuously while polling weights, until they actually
+    converge - not just until they're "not identical".
 
-    # Leader's own weight entry appears to follow a different rule than
-    # follower weights (no self-measured AppendEntries latency) - exclude
-    # it from the spread check so we're only judging what the EWA does
-    # with observed peer latency, not the leader's own placeholder value.
-    # Flagged to B for confirmation; documenting as a known caveat either way.
-    compare_weights = {k: v for k, v in weights.items() if k != leader_id} if leader_id else weights
-
-    if not compare_weights:
-        return expect_uniform, weights
-
-    values = list(compare_weights.values())
-    spread = max(values) - min(values)
-    is_uniform = spread < 0.05
-    passed = is_uniform if expect_uniform else not is_uniform
-    return passed, weights
-
-def wait_for_weight_condition(leader_port, expect_uniform, leader_id=None, max_wait=40, poll_every=3):
+    expect_divergence=False (vanilla / uniform profile): weights should
+      stay near 1.0 the whole time - pass as soon as confirmed stable.
+    expect_divergence=True (weighted, heterogeneous profile): wait until
+      at least one node's weight drops below `threshold` (real
+      convergence, per B's test showing slow nodes collapsing to ~0.05),
+      not just "spread > 0.05" which lets barely-nudged values through.
+    """
     deadline = time.time() + max_wait
     last_weights = {}
     while time.time() < deadline:
-        passed, weights = check_weight_uniformity(leader_port, expect_uniform, leader_id=leader_id)
+        load_fn()  # keep driving real traffic while we wait/check
+        weights = get_weights(leader_port)
         last_weights = weights
-        if passed:
-            return True, weights
+
+        if not weights:
+            if not expect_divergence:
+                return True, weights
+            time.sleep(poll_every)
+            continue
+
+        values = list(weights.values())
+        min_w = min(values)
+        spread = max(values) - min_w
+
+        if expect_divergence:
+            if min_w < threshold:
+                return True, weights
+        else:
+            if spread < 0.05:
+                return True, weights
+
         time.sleep(poll_every)
     return False, last_weights
 

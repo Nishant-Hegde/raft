@@ -1,88 +1,36 @@
 {
-  "generated": "2026-07-13T12:00:57.786888+05:30",
+  "generated": "2026-07-13T12:14:01.852648+05:30",
   "results": [
     {
       "mode": "vanilla",
-      "heterogeneity_profile": "uniform",
-      "p50_ms": 50.083,
-      "p99_ms": 412.236,
-      "p999_ms": 755.729,
-      "throughput_ops_sec": 658.9,
-      "ops_attempted": 39535,
-      "ops_succeeded": 39535,
-      "weights_at_check": {}
-    },
-    {
-      "mode": "vanilla",
-      "heterogeneity_profile": "moderate",
-      "p50_ms": 47.446,
-      "p99_ms": 79.828,
-      "p999_ms": 140.004,
-      "throughput_ops_sec": 1011.5,
-      "ops_attempted": 60691,
-      "ops_succeeded": 60691,
-      "weights_at_check": {}
-    },
-    {
-      "mode": "vanilla",
       "heterogeneity_profile": "severe",
-      "p50_ms": 40.149,
-      "p99_ms": 85.517,
-      "p999_ms": 122.139,
-      "throughput_ops_sec": 1232.1,
-      "ops_attempted": 73925,
-      "ops_succeeded": 73925,
+      "p50_ms": 53.885,
+      "p99_ms": 89.76,
+      "p999_ms": 130.538,
+      "throughput_ops_sec": 889.6,
+      "ops_attempted": 53375,
+      "ops_succeeded": 53375,
+      "ops_timeout": 0,
+      "ops_error": 0,
       "weights_at_check": {}
-    },
-    {
-      "mode": "weighted",
-      "heterogeneity_profile": "uniform",
-      "p50_ms": 54.616,
-      "p99_ms": 101.788,
-      "p999_ms": 130.258,
-      "throughput_ops_sec": 888.2,
-      "ops_attempted": 53295,
-      "ops_succeeded": 53295,
-      "weights_at_check": {
-        "1": 1.0246753994503968,
-        "2": 0.9848398191769862,
-        "3": 0.9826727551002,
-        "4": 0.9831366268220196,
-        "5": 1.0246753994503968
-      }
-    },
-    {
-      "mode": "weighted",
-      "heterogeneity_profile": "moderate",
-      "p50_ms": 57.976,
-      "p99_ms": 119.538,
-      "p999_ms": 332.972,
-      "throughput_ops_sec": 806.5,
-      "ops_attempted": 48390,
-      "ops_succeeded": 48390,
-      "weights_at_check": {
-        "1": 1.5407487339582726,
-        "2": 1.3585628594217376,
-        "3": 1.2317305222202768,
-        "4": 0.4417282904500586,
-        "5": 0.4272295939496545
-      }
     },
     {
       "mode": "weighted",
       "heterogeneity_profile": "severe",
-      "p50_ms": 49.92,
-      "p99_ms": 94.047,
-      "p999_ms": 123.866,
-      "throughput_ops_sec": 988.9,
-      "ops_attempted": 59333,
-      "ops_succeeded": 59333,
+      "p50_ms": 51.472,
+      "p99_ms": 91.681,
+      "p999_ms": 110.184,
+      "throughput_ops_sec": 962.7,
+      "ops_attempted": 57761,
+      "ops_succeeded": 57761,
+      "ops_timeout": 0,
+      "ops_error": 0,
       "weights_at_check": {
-        "1": 1.013611523955192,
-        "2": 1.0628695044083785,
-        "3": 0.989850210460338,
-        "4": 1.0628695044083785,
-        "5": 0.8707992567677124
+        "1": 1.0008290316726998,
+        "2": 1.0060833888772718,
+        "3": 1.0617389459256252,
+        "4": 1.0617389459256252,
+        "5": 0.869609687598777
       }
     }
   ],

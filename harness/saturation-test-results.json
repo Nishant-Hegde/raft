@@ -1,0 +1,50 @@
+[
+  {
+    "mode": "vanilla",
+    "profile": "severe",
+    "target_rate": 50,
+    "p50_ms": 33.304,
+    "p99_ms": 174.823,
+    "count": 1463,
+    "outcomes": {
+      "success": 1463,
+      "timeout": 0,
+      "error": 0
+    },
+    "weights_after_run": {}
+  },
+  {
+    "mode": "weighted",
+    "profile": "severe",
+    "target_rate": 50,
+    "p50_ms": 14.882,
+    "p99_ms": 30.364,
+    "count": 1460,
+    "outcomes": {
+      "success": 1460,
+      "timeout": 0,
+      "error": 0
+    },
+    "weights_after_run": {
+      "1": 1.5205546312982023,
+      "2": 1.3016400744007341,
+      "3": 1.7292994623356746,
+      "4": 0.22295303952997753,
+      "5": 0.22555279243541163
+    }
+  },
+  {
+    "mode": "vanilla",
+    "profile": "severe",
+    "target_rate": 100,
+    "p50_ms": 18.197,
+    "p99_ms": 39.563,
+    "count": 2832,
+    "outcomes": {
+      "success": 2832,
+      "timeout": 0,
+      "error": 0
+    },
+    "weights_after_run": {}
+  }
+]
