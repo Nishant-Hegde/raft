@@ -6,9 +6,9 @@ import os
 import re
 import sys
 import threading
+import concurrent.futures
 import subprocess
 import urllib.request
-import concurrent.futures
 from datetime import datetime
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -25,26 +25,16 @@ NODE_ID_TO_NAME = {
     "1": "node1", "2": "node2", "3": "node3", "4": "node4", "5": "node5",
 }
 
-# -- Grid definition -----------------------------------------
-# Read axis dropped (agreed with B): WR-Raft affects the commit path
-# only - reads are served from local applied state without quorum
-# involvement, so read/write mix is not a meaningful axis here.
-# Grid is 3 heterogeneity profiles x 2 modes = 6 cells.
-
 HETEROGENEITY_PROFILES = {
     "uniform":  {"NODE1_DELAY": "1", "NODE2_DELAY": "1", "NODE3_DELAY": "1", "NODE4_DELAY": "1",  "NODE5_DELAY": "1"},
     "moderate": {"NODE1_DELAY": "1", "NODE2_DELAY": "1", "NODE3_DELAY": "1", "NODE4_DELAY": "5",  "NODE5_DELAY": "5"},
     "severe":   {"NODE1_DELAY": "1", "NODE2_DELAY": "1", "NODE3_DELAY": "1", "NODE4_DELAY": "10", "NODE5_DELAY": "10"},
 }
 
-TARGET_OPS_PER_SEC   = 1000
-RUN_SECONDS          = 60
-WARMUP_SECONDS       = 10
-BACKGROUND_OPS_PER_SEC = 20    # light load kept running during warmup + weight-poll,
-                                # so the EWA has real AppendEntries latency to react to
-                                # before the actual measured run even starts
-
-# -- Metrics helpers (supplementary per-node fsync stats) ----
+TARGET_OPS_PER_SEC     = 1000
+RUN_SECONDS            = 60
+WARMUP_SECONDS         = 10
+BACKGROUND_OPS_PER_SEC = 20
 
 def fetch_metrics(port):
     try:
@@ -61,8 +51,6 @@ def calc_percentile(samples, pct):
     idx = min(int(len(s) * (pct / 100.0)), len(s) - 1)
     return round(s[idx], 3)
 
-# -- Real client-timed writes ---------------------------------
-
 def timed_propose(port, data=b"bench-op", timeout=5):
     start = time.perf_counter()
     try:
@@ -72,19 +60,9 @@ def timed_propose(port, data=b"bench-op", timeout=5):
             method="POST"
         )
         urllib.request.urlopen(req, timeout=timeout)
-        elapsed = (time.perf_counter() - start) * 1000
-        return elapsed, "success"
-    except urllib.error.URLError as e:
-        if isinstance(e.reason, TimeoutError) or "timed out" in str(e.reason).lower():
-            return None, "timeout"
-        return None, "error"
+        return (time.perf_counter() - start) * 1000
     except Exception:
-        return None, "error"
-    
-# -- Background load generator --------------------------------
-# Keeps real writes flowing continuously so weights have something
-# to converge on BEFORE the measured run starts. Runs in a daemon
-# thread; stop_event signals it to stop.
+        return None
 
 def background_load(port_getter, stop_event, ops_per_sec):
     interval = 1.0 / ops_per_sec
@@ -93,8 +71,6 @@ def background_load(port_getter, stop_event, ops_per_sec):
         if port is not None:
             timed_propose(port)
         stop_event.wait(interval)
-
-# -- Leader / mode discovery -----------------------------------
 
 def find_leader_port(timeout=15):
     deadline = time.time() + timeout
@@ -152,21 +128,16 @@ def get_weights(leader_port):
 
 def wait_for_convergence(leader_port, expect_divergence, load_fn, max_wait=90, poll_every=5, threshold=0.5):
     """
-    Drive real load (via load_fn, a callable with no args that fires one
-    request) continuously while polling weights, until they actually
-    converge - not just until they're "not identical".
-
-    expect_divergence=False (vanilla / uniform profile): weights should
-      stay near 1.0 the whole time - pass as soon as confirmed stable.
-    expect_divergence=True (weighted, heterogeneous profile): wait until
-      at least one node's weight drops below `threshold` (real
-      convergence, per B's test showing slow nodes collapsing to ~0.05),
-      not just "spread > 0.05" which lets barely-nudged values through.
+    Drive real load continuously while polling weights, until they
+    actually converge - not just until they're 'not identical'.
+    expect_divergence=False: weights should stay near 1.0/uniform.
+    expect_divergence=True: wait until at least one node's weight
+      drops below `threshold` (real convergence), not just spread>0.05.
     """
     deadline = time.time() + max_wait
     last_weights = {}
     while time.time() < deadline:
-        load_fn()  # keep driving real traffic while we wait/check
+        load_fn()
         weights = get_weights(leader_port)
         last_weights = weights
 
@@ -189,8 +160,6 @@ def wait_for_convergence(leader_port, expect_divergence, load_fn, max_wait=90, p
 
         time.sleep(poll_every)
     return False, last_weights
-
-# -- Cluster helpers --------------------------------------------
 
 def wait_for_cluster(timeout=60):
     print("[grid]   Waiting for all 5 nodes...", end="", flush=True)
@@ -216,7 +185,7 @@ def wait_for_cluster(timeout=60):
 def start_cluster(env_vars):
     print(f"[grid] Starting cluster with: {env_vars}")
     env = os.environ.copy()
-    env.pop("WR_WEIGHTING", None)   # clear any leaked shell-level value first
+    env.pop("WR_WEIGHTING", None)
     env.update(env_vars)
     subprocess.run(
         ["docker", "compose", "down", "--remove-orphans"],
@@ -234,8 +203,6 @@ def stop_cluster(proc):
     subprocess.run(["docker", "compose", "down"], cwd=PROJECT_DIR, capture_output=True)
     time.sleep(5)
     proc.terminate()
-
-# -- Per-cell run --------------------------------------------
 
 def run_cell(mode, profile_name):
     print(f"\n{'='*65}")
@@ -255,11 +222,6 @@ def run_cell(mode, profile_name):
 
     expected_mode = "DISABLED" if mode == "vanilla" else "ENABLED"
 
-    # -- Start background load IMMEDIATELY, before warmup even finishes.
-    #    This is the fix: weights only move on real AppendEntries
-    #    responses, not heartbeats. Without real traffic flowing during
-    #    warmup/weight-check, the EWA has nothing to react to and stays
-    #    near its 1.0 default the whole time we're checking it.
     leader_port_holder = {"port": None}
     stop_bg = threading.Event()
     bg_thread = threading.Thread(
@@ -285,46 +247,43 @@ def run_cell(mode, profile_name):
         stop_cluster(proc)
         return None
 
-    leader_port_holder["port"] = leader_port   # background load now targets the real leader
-    
-    leader_id = leader_name.replace("node", "") 
-    # Uniform profile has no real heterogeneity - weights should stay
-    # near-equal even with weighting ON, since there's nothing for the
-    # EWA to differentiate. Only moderate/severe profiles should show
-    # divergence when weighted.
+    leader_port_holder["port"] = leader_port
+
     if profile_name == "uniform":
-        expect_uniform = True
+        expect_divergence = False
     else:
-        expect_uniform = (mode == "vanilla")
+        expect_divergence = (mode == "weighted")
 
-    print(f"  Leader: {leader_name} (port {leader_port}) - polling weight condition (background load flowing)...")
-    weight_ok, weights = wait_for_weight_condition(leader_port, expect_uniform, leader_id=leader_id)
-    if not weight_ok:
-        print("  ABORTING CELL - weight-uniformity assertion failed, do not trust this cell")
-        print(f"  Last observed weights: {weights}")
-        stop_bg.set()
-        stop_cluster(proc)
-        return None
+    def drive_load():
+        for _ in range(20):
+            timed_propose(leader_port)
 
-    print(f"  Weight condition confirmed: {weights}")
+    print(f"  Waiting for real weight convergence (driving load, threshold=0.5)...")
+    weight_ok, weights = wait_for_convergence(leader_port, expect_divergence, drive_load)
 
-    # Stop the light background thread - the real measured run below
-    # takes over as the actual load for this cell.
     stop_bg.set()
     bg_thread.join(timeout=2)
 
-    print(f"  Running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec (measured, concurrent)...")
+    if not weight_ok:
+        print("  ABORTING CELL - weights never converged within max_wait, do not trust this cell")
+        print(f"  Last observed weights: {weights}")
+        stop_cluster(proc)
+        return None
+
+    print(f"  Weight convergence confirmed: {weights}")
+    print(f"  Leader: {leader_name} (port {leader_port}) - running {RUN_SECONDS}s at {TARGET_OPS_PER_SEC} ops/sec (measured, concurrent)...")
 
     latencies = []
-    outcome_counts = {"success": 0, "timeout": 0, "error": 0}
+    ops_done = 0
     lock = threading.Lock()
     end_time = time.time() + RUN_SECONDS
 
     def worker():
+        nonlocal ops_done
         while time.time() < end_time:
-            elapsed_ms, outcome = timed_propose(leader_port)
+            elapsed_ms = timed_propose(leader_port)
             with lock:
-                outcome_counts[outcome] += 1
+                ops_done += 1
                 if elapsed_ms is not None:
                     latencies.append(elapsed_ms)
 
@@ -333,25 +292,7 @@ def run_cell(mode, profile_name):
         futures = [executor.submit(worker) for _ in range(num_workers)]
         concurrent.futures.wait(futures)
 
-    total_attempts = sum(outcome_counts.values())
     throughput = round(len(latencies) / RUN_SECONDS, 1) if latencies else None
-
-    print(f"  Outcomes: success={outcome_counts['success']} "
-          f"timeout={outcome_counts['timeout']} error={outcome_counts['error']} "
-          f"(total attempted={total_attempts})")
-
-    # Dump raw per-request latencies for this cell so we can inspect the
-    # distribution shape (e.g. bimodal), not just aggregate percentiles.
-    raw_path = os.path.join(SCRIPT_DIR, f"raw-latencies-{mode}-{profile_name}.json")
-    with open(raw_path, "w") as f:
-        json.dump({
-            "mode": mode,
-            "profile": profile_name,
-            "raw_latencies_ms": latencies,
-            "outcome_counts": outcome_counts,
-        }, f)
-    print(f"  Raw latencies saved to: {raw_path}")
-    
 
     row = {
         "mode": mode,
@@ -360,47 +301,14 @@ def run_cell(mode, profile_name):
         "p99_ms":  calc_percentile(latencies, 99),
         "p999_ms": calc_percentile(latencies, 99.9),
         "throughput_ops_sec": throughput,
-        "ops_attempted": total_attempts,
-        "ops_succeeded": outcome_counts["success"],
-        "ops_timeout": outcome_counts["timeout"],
-        "ops_error": outcome_counts["error"],
+        "ops_attempted": ops_done,
+        "ops_succeeded": len(latencies),
         "weights_at_check": weights,
     }
 
     stop_cluster(proc)
     print(f"  Cell done: p50={row['p50_ms']}ms p99={row['p99_ms']}ms throughput={throughput}ops/s")
     return row
-
-
-def run_rate_limited(leader_port, target_ops_per_sec, duration_sec):
-    """
-    Send requests at a controlled rate (not max-concurrency), to test
-    whether the cluster is saturated at higher rates. Uses a simple
-    token-bucket style loop: one request per interval, but still async
-    enough to not double-count queueing as commit latency.
-    """
-    interval = 1.0 / target_ops_per_sec
-    latencies = []
-    outcome_counts = {"success": 0, "timeout": 0, "error": 0}
-    lock = threading.Lock()
-    end_time = time.time() + duration_sec
-
-    def fire_one():
-        elapsed_ms, outcome = timed_propose(leader_port)
-        with lock:
-            outcome_counts[outcome] += 1
-            if elapsed_ms is not None:
-                latencies.append(elapsed_ms)
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-        while time.time() < end_time:
-            executor.submit(fire_one)
-            time.sleep(interval)
-        executor.shutdown(wait=True)
-
-    return latencies, outcome_counts
-
-# -- Main grid loop --------------------------------------------
 
 def main():
     print(f"\n{'='*65}")
@@ -442,18 +350,6 @@ def main():
             "generated": datetime.now().astimezone().isoformat(),
             "results": results,
             "skipped_cells": skipped,
-            "note": (
-                "Read/write mix axis intentionally dropped. WR-Raft affects "
-                "the commit path only - reads are served from local applied "
-                "state without quorum involvement, so read mix is not a "
-                "meaningful axis for this evaluation. Grid is 3 heterogeneity "
-                "profiles x 2 modes (vanilla/weighted), writes-only. Uniform "
-                "profile expects uniform weights under BOTH modes since there "
-                "is no real heterogeneity for the EWA to react to. A light "
-                "background write load (20 ops/sec) runs during warmup and "
-                "weight-convergence polling so the EWA has real AppendEntries "
-                "latency to react to before the measured run begins."
-            ),
         }, f, indent=2)
 
     print(f"\n{'='*65}")
